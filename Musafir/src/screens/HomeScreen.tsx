@@ -199,6 +199,13 @@ export const HomeScreen = () => {
               </TouchableOpacity>
             </View>
 
+            {/* Ayah Card - centered between presets and custom input */}
+            <View style={styles.ayahCard}>
+              <Text style={styles.ayahCardText}>
+                ...And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
+              </Text>
+            </View>
+
             <View style={styles.customInputContainer}>
               <Text style={styles.customLabel}>Custom (minutes)</Text>
               <View style={styles.inputRow}>
@@ -225,7 +232,12 @@ export const HomeScreen = () => {
 
         {/* Settings Section */}
         <View style={styles.settingsSection}>
-
+          {/* Ayah Card near blocklist inputs */}
+          <View style={styles.ayahCardSmall}>
+            <Text style={styles.ayahCardTextSmall}>
+              And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
+            </Text>
+          </View>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Add to Blocklist</Text>
             <View style={styles.inputRow}>
@@ -438,6 +450,44 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
     fontSize: 14,
+  },
+  ayahCard: {
+    backgroundColor: colors.primaryDark,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  ayahCardText: {
+    color: colors.white,
+    fontSize: 14,
+    textAlign: 'center',
+    fontFamily: fonts.primary,
+    fontWeight: '600',
+  },
+  ayahCardSmall: {
+    backgroundColor: colors.primaryDark,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+  },
+  ayahCardTextSmall: {
+    color: colors.white,
+    fontSize: 12,
+    textAlign: 'center',
+    fontFamily: fonts.primary,
+    fontStyle: 'italic',
   },
   listHeader: {
     flexDirection: 'row',
