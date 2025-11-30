@@ -151,7 +151,7 @@ export const HomeScreen = () => {
         {timer.isActive ? (
           <View style={styles.activeContainer}>
             <View style={styles.statusCard}>
-              <Text style={styles.statusTitle}>HaramBlocker Active</Text>
+              <Text style={styles.statusTitle}>Musafir Active</Text>
               <Text style={styles.countdown}>
                 {formatTime(timer.remainingSeconds)}
               </Text>
@@ -225,7 +225,6 @@ export const HomeScreen = () => {
 
         {/* Settings Section */}
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>Blocklist Settings</Text>
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Add to Blocklist</Text>
@@ -408,7 +407,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   settingsSection: {
-    marginTop: 10,
+    marginTop: -30,
     marginBottom: 20,
   },
   sectionTitle: {
