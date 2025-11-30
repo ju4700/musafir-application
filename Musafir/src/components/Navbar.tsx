@@ -1,13 +1,9 @@
 import React from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Text,
-} from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
+import { HomeIcon } from './icons/HomeIcon';
+import { SettingsIcon } from './icons/SettingsIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -31,14 +27,12 @@ export const Navbar = () => {
               isActive('Home') && styles.activeIconContainer,
             ]}
           >
-            <Text
-              style={[
-                styles.iconText,
-                isActive('Home') && styles.activeIconText,
-              ]}
-            >
-              🏠
-            </Text>
+            <HomeIcon
+              color={
+                isActive('Home') ? colors.white : 'rgba(255, 255, 255, 0.5)'
+              }
+              size={28}
+            />
           </View>
         </TouchableOpacity>
 
@@ -53,14 +47,12 @@ export const Navbar = () => {
               isActive('Settings') && styles.activeIconContainer,
             ]}
           >
-            <Text
-              style={[
-                styles.iconText,
-                isActive('Settings') && styles.activeIconText,
-              ]}
-            >
-              ⚙️
-            </Text>
+            <SettingsIcon
+              color={
+                isActive('Settings') ? colors.white : 'rgba(255, 255, 255, 0.5)'
+              }
+              size={28}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -109,12 +101,5 @@ const styles = StyleSheet.create({
   },
   activeIconContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  iconText: {
-    fontSize: 28,
-    color: 'rgba(255, 255, 255, 0.5)',
-  },
-  activeIconText: {
-    color: colors.white,
   },
 });
