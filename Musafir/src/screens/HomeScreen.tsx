@@ -80,7 +80,7 @@ export const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
+      <StatusBar backgroundColor={colors.background} barStyle="light-content" />
 
       <View style={styles.header}>
         <Text style={styles.title}>مسافر</Text>
@@ -201,6 +201,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   title: {
+    marginTop: 30,
+    fontWeight: '700',
     fontFamily: fonts.primary,
     fontSize: 32,
     color: colors.white,
