@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   navBackground: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: colors.primaryDark,
     width: '100%',
     height: 80,
     borderTopLeftRadius: 24,

@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
     paddingTop: 40, // Extra padding for status bar
   },
   title: {
+    marginTop: 8,
     fontWeight: '700',
     fontFamily: fonts.primary,
     fontSize: 32,
