@@ -42,13 +42,13 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 14,
-    color: colors.tagline,
+    color: colors.white,
     fontWeight: '600',
     marginBottom: 8,
   },
   ayah: {
     fontSize: 14,
-    color: colors.ayah,
+    color: colors.white,
     fontStyle: 'italic',
     textAlign: 'center',
   },

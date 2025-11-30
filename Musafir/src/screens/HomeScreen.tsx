@@ -199,12 +199,7 @@ export const HomeScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Ayah Card - centered between presets and custom input */}
-            <View style={styles.ayahCard}>
-              <Text style={styles.ayahCardText}>
-                ...And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
-              </Text>
-            </View>
+            
 
             <View style={styles.customInputContainer}>
               <Text style={styles.customLabel}>Custom (minutes)</Text>
@@ -229,15 +224,15 @@ export const HomeScreen = () => {
             </View>
           </View>
         )}
-
+        {/* Ayah Card - centered between presets and custom input */}
+            <View style={styles.ayahCard}>
+              <Text style={styles.ayahCardText}>
+                ...And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
+              </Text>
+            </View>
         {/* Settings Section */}
         <View style={styles.settingsSection}>
-          {/* Ayah Card near blocklist inputs */}
-          <View style={styles.ayahCardSmall}>
-            <Text style={styles.ayahCardTextSmall}>
-              And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
-            </Text>
-          </View>
+          
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Add to Blocklist</Text>
             <View style={styles.inputRow}>
@@ -452,11 +447,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   ayahCard: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.primaryGradient[1],
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: -30,
+    marginBottom: 46,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
