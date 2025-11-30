@@ -118,6 +118,12 @@ export const SettingsScreen = () => {
           </View>
         }
       />
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          VPN: {useAppStore.getState().isVPNActive ? 'Active' : 'Inactive'} |
+          Icon: {useAppStore.getState().isAppHidden ? 'Hidden' : 'Visible'}
+        </Text>
+      </View>
       <Navbar />
     </SafeAreaView>
   );
@@ -223,5 +229,14 @@ const styles = StyleSheet.create({
     color: '#D32F2F',
     fontSize: 12,
     fontWeight: '600',
+  },
+  footer: {
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 80,
+  },
+  footerText: {
+    fontSize: 12,
+    color: colors.textLight,
   },
 });

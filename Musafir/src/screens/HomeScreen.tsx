@@ -167,13 +167,6 @@ export const HomeScreen = () => {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          VPN: {isVPNActive ? 'Active' : 'Inactive'} | Icon:{' '}
-          {isAppHidden ? 'Hidden' : 'Visible'}
-        </Text>
-      </View>
-
       <Navbar />
     </SafeAreaView>
   );

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 const { width } = Dimensions.get('window');
 
@@ -19,17 +20,16 @@ export const Navbar = () => {
 
   return (
     <View style={styles.container}>
-      {/* Black background container */}
       <View style={styles.navBackground}>
-        {/* Home Button Container */}
+        {/* Home Button */}
         <TouchableOpacity
           style={styles.buttonContainer}
           onPress={() => navigation.navigate('Home' as never)}
         >
           <View
             style={[
-              styles.iconBackground,
-              isActive('Home') && styles.activeIconBackground,
+              styles.iconContainer,
+              isActive('Home') && styles.activeIconContainer,
             ]}
           >
             <Text
@@ -46,15 +46,15 @@ export const Navbar = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* Settings Button Container */}
+        {/* Settings Button */}
         <TouchableOpacity
           style={styles.buttonContainer}
           onPress={() => navigation.navigate('Settings' as never)}
         >
           <View
             style={[
-              styles.iconBackground,
-              isActive('Settings') && styles.activeIconBackground,
+              styles.iconContainer,
+              isActive('Settings') && styles.activeIconContainer,
             ]}
           >
             <Text
@@ -80,57 +80,59 @@ export const Navbar = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     zIndex: 1000,
   },
   navBackground: {
     flexDirection: 'row',
-    backgroundColor: 'black',
-    width: width * 0.85,
-    height: 70,
-    borderRadius: 35,
+    backgroundColor: 'white',
+    width: '100%',
+    height: 80,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    paddingBottom: 10, // Adjust for safe area if needed, or just visual balance
+    elevation: 20, // High elevation for shadow
+    shadowColor: 'rgba(10, 14, 18, 0.10)',
+    shadowOffset: { width: 0, height: -4 }, // Negative height for top shadow
+    shadowOpacity: 1,
+    shadowRadius: 20,
   },
   buttonContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
-  iconBackground: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  activeIconBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  activeIconContainer: {
+    backgroundColor: '#f0f0f0', // Subtle highlight for active state
   },
   iconText: {
-    fontSize: 20,
-    color: '#888',
+    fontSize: 24,
+    color: '#A6A6A6',
   },
   activeIconText: {
-    color: '#fff',
+    color: colors.primary,
   },
   label: {
-    fontSize: 10,
-    color: '#888',
+    fontSize: 12,
+    color: '#A6A6A6',
+    fontFamily: fonts.primary,
     fontWeight: '600',
   },
   activeLabel: {
-    color: '#fff',
+    color: colors.primary,
   },
 });
