@@ -117,18 +117,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   activeIconContainer: {
-    backgroundColor: '#f0f0f0', // Subtle highlight for active state
+    backgroundColor: '#f0f0f0',
   },
   iconText: {
     fontSize: 24,
-    color: '#A6A6A6',
+    color: colors.textLight,
   },
   activeIconText: {
     color: colors.primary,
   },
   label: {
     fontSize: 12,
-    color: '#A6A6A6',
+    color: colors.textLight,
     fontFamily: fonts.primary,
     fontWeight: '600',
   },

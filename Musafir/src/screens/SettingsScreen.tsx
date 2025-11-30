@@ -8,11 +8,13 @@ import {
   FlatList,
   Alert,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Navbar } from '../components/Navbar';
+import { Header } from '../components/Header';
 
 export const SettingsScreen = () => {
   const { blocklist, addBlockedDomain, removeBlockedDomain, resetBlocklist } =
@@ -25,7 +27,6 @@ export const SettingsScreen = () => {
       return;
     }
 
-    // Simple validation
     const domainRegex =
       /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
     if (!domainRegex.test(newDomain)) {
@@ -74,50 +75,61 @@ export const SettingsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Blocklist Settings</Text>
-      </View>
+      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
+      <Header />
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add domain (e.g., example.com)"
-          value={newDomain}
-          onChangeText={setNewDomain}
-          autoCapitalize="none"
-          placeholderTextColor={colors.textLight}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddDomain}>
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={blocklist}
-        keyExtractor={item => item}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={styles.itemContainer}>
-            <Text style={styles.itemText}>{item}</Text>
+      <View style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Add to Blocklist</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., facebook.com"
+              value={newDomain}
+              onChangeText={setNewDomain}
+              autoCapitalize="none"
+              placeholderTextColor={colors.textLight}
+            />
             <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => handleRemoveDomain(item)}
+              style={styles.addButton}
+              onPress={handleAddDomain}
             >
-              <Text style={styles.removeButtonText}>Remove</Text>
+              <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
-        )}
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <Text style={styles.listHeaderText}>
-              Blocked Domains ({blocklist.length})
-            </Text>
-            <TouchableOpacity onPress={handleReset}>
-              <Text style={styles.resetText}>Reset to Default</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+        </View>
+
+        <View style={styles.listHeader}>
+          <Text style={styles.listTitle}>
+            Blocked Domains ({blocklist.length})
+          </Text>
+          <TouchableOpacity onPress={handleReset}>
+            <Text style={styles.resetText}>Reset Default</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={blocklist}
+          keyExtractor={item => item}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <View style={styles.listItem}>
+              <View style={styles.domainInfo}>
+                <Text style={styles.domainIcon}>🚫</Text>
+                <Text style={styles.domainText}>{item}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => handleRemoveDomain(item)}
+              >
+                <Text style={styles.removeButtonText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+      </View>
+
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           VPN: {useAppStore.getState().isVPNActive ? 'Active' : 'Inactive'} |
@@ -134,96 +146,108 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: colors.primaryDark,
-    padding: 16,
-    alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+  content: {
+    flex: 1,
+    padding: 20,
   },
-  title: {
-    fontFamily: fonts.primary,
-    fontSize: 24,
-    color: colors.white,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 16,
+  card: {
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 12,
-    marginHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
     elevation: 2,
-    marginBottom: 10,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+    fontFamily: fonts.primary,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
     color: colors.text,
-    backgroundColor: '#FAFAFA',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   addButton: {
     backgroundColor: colors.primary,
+    borderRadius: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: colors.white,
     fontWeight: '600',
-    fontFamily: fonts.primary,
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 100, // Extra padding for Navbar
+    fontSize: 14,
   },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  listHeaderText: {
-    fontSize: 14,
+  listTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    fontFamily: fonts.primary,
   },
   resetText: {
     color: '#D32F2F',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  itemContainer: {
+  listContent: {
+    paddingBottom: 20,
+  },
+  listItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.white,
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 12,
+    marginBottom: 12,
     elevation: 1,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  itemText: {
-    fontSize: 14,
+  domainInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  domainIcon: {
+    fontSize: 16,
+  },
+  domainText: {
+    fontSize: 16,
     color: colors.text,
+    fontWeight: '500',
   },
   removeButton: {
-    padding: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
   },
   removeButtonText: {
     color: '#D32F2F',
@@ -233,7 +257,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     alignItems: 'center',
-    marginBottom: 80,
+    marginBottom: 90, // Space for Navbar
   },
   footerText: {
     fontSize: 12,

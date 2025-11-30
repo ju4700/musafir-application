@@ -14,6 +14,7 @@ import { useAppStore } from '../store/appStore';
 import { TimerService } from '../services/TimerService';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
+import { Header } from '../components/Header';
 import { Navbar } from '../components/Navbar';
 
 export const HomeScreen = () => {
@@ -80,15 +81,9 @@ export const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={colors.background} barStyle="light-content" />
+      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>مسافر</Text>
-        <Text style={styles.tagline}>Musafir - Guardian of Digital Purity</Text>
-        <Text style={styles.ayah}>
-          "Tell the believing men to lower their gaze..." (Quran 24:30)
-        </Text>
-      </View>
+      <Header />
 
       <ScrollView contentContainerStyle={styles.content}>
         {timer.isActive ? (
@@ -177,42 +172,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: colors.primaryDark,
-    padding: 24,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
-    // Distinct section look
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  title: {
-    marginTop: 30,
-    fontWeight: '700',
-    fontFamily: fonts.primary,
-    fontSize: 32,
-    color: colors.white,
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 14,
-    color: colors.tagline,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  ayah: {
-    fontSize: 14,
-    color: colors.ayah,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
+
   content: {
     padding: 20,
     paddingBottom: 100, // Extra padding for Navbar
