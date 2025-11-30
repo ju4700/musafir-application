@@ -49,6 +49,19 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Deep Link Activity (Always enabled) -->
+      <activity
+        android:name=".DeepLinkActivity"
+        android:exported="true"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="musafir" android:host="open" />
+        </intent-filter>
+      </activity>
       
       <!-- VPN Service -->
       <service

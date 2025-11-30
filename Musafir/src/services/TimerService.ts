@@ -8,6 +8,7 @@ import * as AppIconManager from '../native/AppIconManager';
 import * as VPNModule from '../native/VPNModule';
 import * as DeviceAdminModule from '../native/DeviceAdminModule';
 import * as AlarmManagerModule from '../native/AlarmManagerModule';
+import SharedPrefsModule from '../native/SharedPrefsModule';
 import {
   NOTIFICATION_CHANNEL_ID,
   NOTIFICATION_CHANNEL_NAME,
@@ -15,7 +16,6 @@ import {
 } from '../constants/defaultBlocklist';
 
 export class TimerService {
-  private static updateInterval: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Request all necessary permissions for the app to function
@@ -91,6 +91,7 @@ export class TimerService {
 
       // Save timer state for persistence
       await BlocklistService.saveTimerState(endTime, durationMinutes);
+      await SharedPrefsModule.saveTimerState(endTime, durationMinutes);
 
       // Start VPN with blocklist
       const vpnStarted = await VPNModule.startVPN(blocklist);
@@ -146,6 +147,7 @@ export class TimerService {
 
       // Clear timer state
       await BlocklistService.clearTimerState();
+      await SharedPrefsModule.clearTimerState();
       store.setTimerActive(false);
       store.setTimerEndTime(null);
       store.setRemainingSeconds(0);
@@ -163,32 +165,29 @@ export class TimerService {
    * Start background task to update timer notification
    */
   private static async startBackgroundTask(endTime: number): Promise<void> {
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(() => resolve(), ms));
 
-    const veryIntensiveTask = async (taskData: any) => {
-      await new Promise<void>(async (resolve) => {
-        const store = useAppStore.getState();
+    const veryIntensiveTask = async (_taskData?: any) => {
+      const store = useAppStore.getState();
 
-        while (BackgroundActions.isRunning()) {
-          const now = Date.now();
-          const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      while (BackgroundActions.isRunning()) {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
 
-          if (remaining <= 0) {
-            // Timer expired
-            await TimerService.handleTimerExpiry();
-            resolve(undefined);
-            break;
-          }
-
-          store.setRemainingSeconds(remaining);
-
-          // Update notification
-          await TimerService.updateTimerNotification(remaining);
-
-          // Wait 10 seconds before next update
-          await sleep(10000);
+        if (remaining <= 0) {
+          // Timer expired
+          await TimerService.handleTimerExpiry();
+          break;
         }
-      });
+
+        store.setRemainingSeconds(remaining);
+
+        // Update notification
+        await TimerService.updateTimerNotification(remaining);
+
+        // Wait 10 seconds before next update
+        await sleep(10000);
+      }
     };
 
     const options = {
@@ -254,6 +253,7 @@ export class TimerService {
 
     // Clear timer state
     await BlocklistService.clearTimerState();
+    await SharedPrefsModule.clearTimerState();
     store.setTimerActive(false);
     store.setTimerEndTime(null);
     store.setRemainingSeconds(0);

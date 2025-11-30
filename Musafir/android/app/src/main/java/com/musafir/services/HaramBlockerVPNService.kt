@@ -5,21 +5,24 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.musafir.R
+import com.musafir.modules.SharedPrefsModule
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * VPN Service that intercepts all traffic and blocks domains on the blocklist
- * Runs as a foreground service to maintain persistent connection
+ * VPN Service that acts as a DNS Proxy to block harmful content.
+ * It intercepts DNS queries sent to the virtual DNS server (10.0.0.2).
  */
 class HaramBlockerVPNService : VpnService() {
 
@@ -36,7 +39,7 @@ class HaramBlockerVPNService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "VPN Service started")
 
-        // Load blocklist from intent
+        // Load blocklist from intent (or SharedPrefs in future)
         intent?.getStringArrayListExtra("BLOCKLIST")?.let { list ->
             blocklist.clear()
             blocklist.addAll(list)
@@ -65,16 +68,22 @@ class HaramBlockerVPNService : VpnService() {
     private fun startVPN() {
         try {
             // Build VPN interface
+            // We configure it to intercept ONLY traffic to our virtual DNS IP
             val builder = Builder()
                 .setSession("HaramBlocker VPN")
-                .addAddress("10.0.0.2", 24) // Virtual IP address
-                .addRoute("0.0.0.0", 0) // Route all IPv4 traffic
-                .addDnsServer("8.8.8.8") // Google DNS
-                .addDnsServer("8.8.4.4") // Google DNS Secondary
+                .addAddress("10.0.0.2", 32)
+                .addDnsServer("10.0.0.2")
+                .addRoute("10.0.0.2", 32)
+                // We do NOT add default route (0.0.0.0/0) so normal traffic bypasses VPN
+                // This ensures internet works, but DNS is filtered
 
-            // Exclude our app from VPN to prevent loops
+            // Exclude our app
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                builder.addDisallowedApplication(packageName)
+                try {
+                    builder.addDisallowedApplication(packageName)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to exclude app", e)
+                }
             }
 
             vpnInterface = builder.establish()
@@ -98,22 +107,14 @@ class HaramBlockerVPNService : VpnService() {
 
     private fun stopVPN() {
         isRunning.set(false)
-
-        // Close VPN interface
-        vpnInterface?.let {
-            try {
-                it.close()
-                vpnInterface = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error closing VPN interface", e)
-            }
+        try {
+            vpnInterface?.close()
+            vpnInterface = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing VPN interface", e)
         }
-
-        // Stop thread
         vpnThread?.interrupt()
         vpnThread = null
-
-        Log.d(TAG, "VPN stopped")
     }
 
     private fun processPackets() {
@@ -124,176 +125,228 @@ class HaramBlockerVPNService : VpnService() {
 
         try {
             while (isRunning.get() && !Thread.interrupted()) {
-                buffer.clear()
                 val length = inputStream.read(buffer.array())
-
                 if (length > 0) {
-                    // Process packet
                     buffer.limit(length)
-                    val shouldBlock = analyzePacket(buffer)
-
-                    if (shouldBlock) {
-                        Log.d(TAG, "Blocking packet")
-                        // Drop the packet by not forwarding it
-                        continue
-                    }
-
-                    // Forward allowed packets (in a real implementation)
-                    // For simplicity, we're doing basic blocking
-                    // A full VPN would need to route packets properly
-                    buffer.flip()
-                    outputStream.write(buffer.array(), 0, length)
+                    // We only expect IPv4 UDP packets to 10.0.0.2:53
+                    handlePacket(buffer, length, outputStream)
+                    buffer.clear()
                 }
             }
         } catch (e: Exception) {
-            if (isRunning.get()) {
-                Log.e(TAG, "Error processing packets", e)
-            }
+            if (isRunning.get()) Log.e(TAG, "Error processing packets", e)
         }
     }
 
-    /**
-     * Analyze packet and determine if it should be blocked
-     * Simplified version - checks for domains in DNS queries and TCP connections
-     */
-    private fun analyzePacket(packet: ByteBuffer): Boolean {
+    private fun handlePacket(packet: ByteBuffer, length: Int, outputStream: FileOutputStream) {
         try {
-            // Get IP version
-            val versionAndHeaderLength = packet.get(0).toInt()
-            val version = (versionAndHeaderLength shr 4) and 0x0F
+            val version = (packet.get(0).toInt() shr 4) and 0x0F
+            if (version != 4) return // IPv4 only
 
-            if (version != 4) {
-                // Only handle IPv4 for simplicity
-                return false
-            }
-
-            // Get protocol
             val protocol = packet.get(9).toInt() and 0xFF
+            if (protocol != 17) return // UDP only
 
-            when (protocol) {
-                17 -> return analyzeDNSPacket(packet) // UDP (likely DNS)
-                6 -> return analyzeTCPPacket(packet) // TCP
-                else -> return false
+            // Parse IP Header
+            val headerLength = (packet.get(0).toInt() and 0x0F) * 4
+            val srcIp = ByteArray(4)
+            val destIp = ByteArray(4)
+            packet.position(12)
+            packet.get(srcIp)
+            packet.get(destIp)
+
+            // Parse UDP Header
+            packet.position(headerLength)
+            val srcPort = packet.short.toInt() and 0xFFFF
+            val destPort = packet.short.toInt() and 0xFFFF
+            val udpLength = packet.short.toInt() and 0xFFFF
+
+            if (destPort != 53) return // DNS only
+
+            // DNS Payload
+            val dnsPayloadOffset = headerLength + 8
+            val dnsPayloadLength = udpLength - 8
+            
+            if (dnsPayloadLength <= 0 || dnsPayloadOffset + dnsPayloadLength > length) return
+
+            // Extract Domain
+            val domain = extractDomain(packet, dnsPayloadOffset + 12) // Skip DNS Header (12 bytes)
+            
+            if (isDomainBlocked(domain)) {
+                Log.d(TAG, "Blocking domain: $domain")
+                // Send NXDOMAIN response? 
+                // For simplicity, we just drop the packet. 
+                // The client will timeout and retry, eventually failing.
+                // A better UX is to send a response, but constructing it is complex.
+                return 
             }
+
+            // Forward to Real DNS (8.8.8.8)
+            forwardDnsQuery(packet, dnsPayloadOffset, dnsPayloadLength, srcIp, srcPort, outputStream)
+
         } catch (e: Exception) {
-            Log.e(TAG, "Error analyzing packet", e)
-            return false
+            Log.e(TAG, "Error handling packet", e)
         }
     }
 
-    /**
-     * Analyze DNS packet for blocked domains
-     */
-    private fun analyzeDNSPacket(packet: ByteBuffer): Boolean {
+    private fun forwardDnsQuery(
+        packet: ByteBuffer, 
+        payloadOffset: Int, 
+        payloadLength: Int, 
+        clientIp: ByteArray, 
+        clientPort: Int,
+        outputStream: FileOutputStream
+    ) {
         try {
-            // Skip IP header (20 bytes) and UDP header (8 bytes)
-            val dnsPayloadStart = 28
+            val dnsQuery = ByteArray(payloadLength)
+            packet.position(payloadOffset)
+            packet.get(dnsQuery)
 
-            if (packet.limit() <= dnsPayloadStart + 12) {
-                return false // Packet too small
-            }
+            val socket = DatagramSocket()
+            protect(socket) // CRITICAL: Protect socket so it bypasses VPN
 
-            // Extract DNS query (simplified)
-            val domain = extractDomainFromDNS(packet, dnsPayloadStart + 12)
+            val dnsServer = InetAddress.getByName("8.8.8.8")
+            val outPacket = DatagramPacket(dnsQuery, payloadLength, dnsServer, 53)
+            socket.send(outPacket)
 
-            return isDomainBlocked(domain)
+            // Receive response
+            val responseBuffer = ByteArray(4096)
+            val inPacket = DatagramPacket(responseBuffer, responseBuffer.size)
+            socket.soTimeout = 2000 // 2s timeout
+            socket.receive(inPacket)
+
+            // Construct response IP packet
+            // We need to swap src/dest IP and ports
+            // Src IP = 10.0.0.2, Dest IP = clientIp
+            // Src Port = 53, Dest Port = clientPort
+            
+            val responseData = inPacket.data.copyOf(inPacket.length)
+            val ipPacket = buildUdpPacket(
+                responseData, 
+                byteArrayOf(10, 0, 0, 2), 
+                clientIp, 
+                53, 
+                clientPort
+            )
+            
+            outputStream.write(ipPacket)
+            socket.close()
+
         } catch (e: Exception) {
-            return false
+            Log.e(TAG, "DNS Forward error: ${e.message}")
         }
     }
 
-    /**
-     * Extract domain name from DNS query
-     */
-    private fun extractDomainFromDNS(packet: ByteBuffer, offset: Int): String {
-        val domainBuilder = StringBuilder()
-        var pos = offset
+    private fun buildUdpPacket(
+        payload: ByteArray, 
+        srcIp: ByteArray, 
+        destIp: ByteArray, 
+        srcPort: Int, 
+        destPort: Int
+    ): ByteArray {
+        val ipHeaderLen = 20
+        val udpHeaderLen = 8
+        val totalLen = ipHeaderLen + udpHeaderLen + payload.size
+        
+        val buffer = ByteBuffer.allocate(totalLen)
+        
+        // IP Header
+        buffer.put(0x45.toByte()) // Version 4, Header Len 5
+        buffer.put(0x00.toByte()) // TOS
+        buffer.putShort(totalLen.toShort()) // Total Len
+        buffer.putShort(0.toShort()) // ID
+        buffer.putShort(0x4000.toShort()) // Flags (Don't Fragment)
+        buffer.put(64.toByte()) // TTL
+        buffer.put(17.toByte()) // Protocol UDP
+        buffer.putShort(0.toShort()) // Checksum (0 for now)
+        buffer.put(srcIp)
+        buffer.put(destIp)
+        
+        // Calculate IP Checksum
+        val ipChecksum = calculateChecksum(buffer.array(), 0, ipHeaderLen)
+        buffer.putShort(10, ipChecksum.toShort())
+        
+        // UDP Header
+        buffer.putShort(srcPort.toShort())
+        buffer.putShort(destPort.toShort())
+        buffer.putShort((udpHeaderLen + payload.size).toShort())
+        buffer.putShort(0.toShort()) // UDP Checksum (optional, 0)
+        
+        // Payload
+        buffer.put(payload)
+        
+        return buffer.array()
+    }
 
+    private fun calculateChecksum(data: ByteArray, offset: Int, length: Int): Int {
+        var sum = 0
+        var i = offset
+        while (i < offset + length - 1) {
+            sum += (data[i].toInt() and 0xFF) shl 8 or (data[i + 1].toInt() and 0xFF)
+            i += 2
+        }
+        if (i < offset + length) {
+            sum += (data[i].toInt() and 0xFF) shl 8
+        }
+        while (sum > 0xFFFF) {
+            sum = (sum and 0xFFFF) + (sum ushr 16)
+        }
+        return sum.inv() and 0xFFFF
+    }
+
+    private fun extractDomain(packet: ByteBuffer, offset: Int): String {
+        val sb = StringBuilder()
+        var pos = offset
         try {
             while (pos < packet.limit()) {
-                val length = packet.get(pos).toInt() and 0xFF
-                if (length == 0) break
-
+                val len = packet.get(pos).toInt() and 0xFF
+                if (len == 0) break
+                if ((len and 0xC0) == 0xC0) {
+                    // Pointer (compression) - not handled for simplicity, but common in responses, less in queries
+                    return sb.toString() 
+                }
                 pos++
-                for (i in 0 until length) {
-                    if (pos >= packet.limit()) break
-                    domainBuilder.append(packet.get(pos).toChar())
+                for (i in 0 until len) {
+                    sb.append(packet.get(pos).toChar())
                     pos++
                 }
-                domainBuilder.append('.')
+                sb.append('.')
             }
-
-            return domainBuilder.toString().trimEnd('.')
-        } catch (e: Exception) {
-            return ""
-        }
+        } catch (e: Exception) { }
+        return sb.toString().trimEnd('.')
     }
 
-    /**
-     * Analyze TCP packet for blocked destinations
-     */
-    private fun analyzeTCPPacket(packet: ByteBuffer): Boolean {
-        try {
-            // Get destination IP
-            val destIPBytes = ByteArray(4)
-            packet.position(16)
-            packet.get(destIPBytes)
-
-            // In a full implementation, would resolve IP to domain
-            // For now, return false to allow TCP
-            // Real implementation would use SNI (Server Name Indication) from TLS handshake
-            return false
-        } catch (e: Exception) {
-            return false
-        }
-    }
-
-    /**
-     * Check if a domain is on the blocklist
-     */
     private fun isDomainBlocked(domain: String): Boolean {
         if (domain.isEmpty()) return false
-
-        val lowerDomain = domain.lowercase()
-
-        // Check exact match
-        if (blocklist.contains(lowerDomain)) {
-            Log.d(TAG, "Blocking domain: $domain")
-            return true
-        }
-
-        // Check if any blocklist entry matches as subdomain
+        val lower = domain.lowercase()
+        if (blocklist.contains(lower)) return true
         for (blocked in blocklist) {
-            if (lowerDomain.endsWith(".$blocked") || lowerDomain == blocked) {
-                Log.d(TAG, "Blocking domain: $domain (matches $blocked)")
-                return true
-            }
+            if (lower.endsWith(".$blocked")) return true
         }
-
         return false
     }
 
     private fun createNotification(): Notification {
         val channelId = "haramBlocker_vpn"
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "VPN Service",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            val channel = NotificationChannel(channelId, "VPN Service", NotificationManager.IMPORTANCE_LOW)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
+        
+        // Intent to open app via DeepLinkActivity (which is always enabled)
+        // This ensures we can re-open the app even if MainActivity is disabled (hidden)
+        val intent = Intent(this, com.musafir.DeepLinkActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent, 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
 
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+        return NotificationCompat.Builder(this, channelId)
             .setContentTitle("HaramBlocker Active")
-            .setContentText("Content filtering is active")
+            .setContentText("Blocking harmful content")
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
             .setOngoing(true)
-
-        return notificationBuilder.build()
+            .build()
     }
 
     companion object {
