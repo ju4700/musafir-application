@@ -79,7 +79,7 @@ export const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar
-        backgroundColor={colors.primaryDark}
+        backgroundColor={colors.primaryLight}
         barStyle="light-content"
       />
 
@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    marginTop: 0,
     backgroundColor: colors.primaryDark,
     padding: 24,
     alignItems: 'center',
@@ -191,6 +192,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
   title: {
+    marginTop: 30,
     fontFamily: fonts.primary,
     fontSize: 32,
     color: colors.white,
