@@ -44,7 +44,7 @@ function App(): React.JSX.Element {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ title: 'Blocklist Settings' }}
+              options={{ headerShown: false }}
             />
           </Stack.Navigator>
         </NavigationContainer>
