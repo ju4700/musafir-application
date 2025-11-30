@@ -83,7 +83,7 @@ export const HomeScreen = () => {
       <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
 
       <View style={styles.header}>
-        <Text style={styles.title}>Musafir</Text>
+        <Text style={styles.title}>مسافر</Text>
         <Text style={styles.tagline}>Musafir - Guardian of Digital Purity</Text>
         <Text style={styles.ayah}>
           "Tell the believing men to lower their gaze..." (Quran 24:30)
