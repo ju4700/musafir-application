@@ -36,7 +36,7 @@ class VPNModule(private val reactContext: ReactApplicationContext) :
             }
 
             vpnPermissionPromise = promise
-            currentActivity?.startActivityForResult(intent, REQUEST_CODE_VPN)
+            getCurrentActivity()?.startActivityForResult(intent, REQUEST_CODE_VPN)
                 ?: promise.reject("NO_ACTIVITY", "No current activity available")
         } catch (e: Exception) {
             promise.reject("VPN_PREPARE_ERROR", "Failed to prepare VPN: ${e.message}", e)
@@ -93,7 +93,7 @@ class VPNModule(private val reactContext: ReactApplicationContext) :
     }
 
     override fun onActivityResult(
-        activity: Activity?,
+        activity: Activity,
         requestCode: Int,
         resultCode: Int,
         data: Intent?
@@ -110,7 +110,7 @@ class VPNModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         // Not needed
     }
 

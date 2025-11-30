@@ -65,7 +65,7 @@ class DeviceAdminModule(private val reactContext: ReactApplicationContext) :
                 "HaramBlocker needs device admin to prevent uninstallation during timer"
             )
 
-            currentActivity?.startActivityForResult(intent, REQUEST_CODE_ENABLE_ADMIN)
+            getCurrentActivity()?.startActivityForResult(intent, REQUEST_CODE_ENABLE_ADMIN)
                 ?: promise.reject("NO_ACTIVITY", "No current activity available")
         } catch (e: Exception) {
             promise.reject("DEVICE_ADMIN_ERROR", "Failed to request device admin: ${e.message}", e)
@@ -110,7 +110,7 @@ class DeviceAdminModule(private val reactContext: ReactApplicationContext) :
     }
 
     override fun onActivityResult(
-        activity: Activity?,
+        activity: Activity,
         requestCode: Int,
         resultCode: Int,
         data: Intent?
@@ -127,7 +127,7 @@ class DeviceAdminModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         // Not needed
     }
 
