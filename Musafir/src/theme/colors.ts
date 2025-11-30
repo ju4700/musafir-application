@@ -1,0 +1,17 @@
+export const colors = {
+  primaryGradient: ['#2E7D32', '#388E3C'],
+  primary: '#4CAF50',
+  primaryDark: '#2E7D32',
+  primaryLight: '#66BB6A',
+  background: '#f7fffa',
+  card: '#FFFFFF',
+  text: '#1A1A1A',
+  textLight: '#757575',
+  tagline: '#A5D6A7',
+  ayah: '#81C784',
+  statusBg: '#e2ffec',
+  statusText: '#2E7D32',
+  border: '#E0E0E0',
+  white: '#FFFFFF',
+  shadow: 'rgba(0, 0, 0, 0.12)',
+};

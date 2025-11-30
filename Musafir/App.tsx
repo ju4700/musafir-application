@@ -1,54 +1,50 @@
-/**
- * HaramBlocker - Content Blocking Timer App
- * Main entry point with navigation
- */
-
 import React from 'react';
-import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { StatusBar, useColorScheme, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import { HomeScreen } from './src/screens/HomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { colors } from './src/theme/colors';
+import { fonts } from './src/theme/fonts';
 
 const Stack = createNativeStackNavigator();
 
-function App() {
+function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={colors.primaryDark}
+        />
         <NavigationContainer>
           <Stack.Navigator
             initialRouteName="Home"
             screenOptions={{
               headerStyle: {
-                backgroundColor: '#6200EE',
+                backgroundColor: colors.primaryDark,
               },
-              headerTintColor: '#fff',
+              headerTintColor: colors.white,
               headerTitleStyle: {
                 fontWeight: 'bold',
+                fontFamily: fonts.primary,
               },
             }}
           >
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{
-                title: 'HaramBlocker',
-                headerShown: true,
-              }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{
-                title: 'Blocklist Settings',
-                headerShown: true,
-              }}
+              options={{ title: 'Blocklist Settings' }}
             />
           </Stack.Navigator>
         </NavigationContainer>
