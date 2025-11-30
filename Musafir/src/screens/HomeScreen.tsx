@@ -142,7 +142,7 @@ export const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
+      <StatusBar backgroundColor={colors.background} barStyle="light-content" />
 
       <Header />
 
@@ -418,27 +418,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.primary,
   },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
     marginBottom: 24,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-    fontFamily: fonts.primary,
+    marginBottom: 8,
   },
   addButton: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: 6,
     paddingHorizontal: 20,
+    paddingVertical: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
