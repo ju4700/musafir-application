@@ -9,18 +9,27 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
+  FlatList,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { TimerService } from '../services/TimerService';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Header } from '../components/Header';
-import { Navbar } from '../components/Navbar';
 
 export const HomeScreen = () => {
-  const { timer, isVPNActive, isAppHidden } = useAppStore();
+  const {
+    timer,
+    isVPNActive,
+    isAppHidden,
+    blocklist,
+    addBlockedDomain,
+    removeBlockedDomain,
+    resetBlocklist,
+  } = useAppStore();
 
   const [customDuration, setCustomDuration] = useState('');
+  const [newDomain, setNewDomain] = useState('');
 
   useEffect(() => {
     // Check for permissions on mount
@@ -72,6 +81,58 @@ export const HomeScreen = () => {
     );
   };
 
+  const handleAddDomain = () => {
+    if (!newDomain.trim()) {
+      Alert.alert('Error', 'Please enter a domain');
+      return;
+    }
+
+    const domainRegex =
+      /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(newDomain)) {
+      Alert.alert('Error', 'Please enter a valid domain (e.g., example.com)');
+      return;
+    }
+
+    if (blocklist.includes(newDomain)) {
+      Alert.alert('Error', 'Domain is already in the blocklist');
+      return;
+    }
+
+    addBlockedDomain(newDomain);
+    setNewDomain('');
+  };
+
+  const handleRemoveDomain = (domain: string) => {
+    Alert.alert(
+      'Remove Domain',
+      `Are you sure you want to remove ${domain} from the blocklist?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => removeBlockedDomain(domain),
+        },
+      ],
+    );
+  };
+
+  const handleReset = () => {
+    Alert.alert(
+      'Reset Blocklist',
+      'This will restore the default blocklist. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: resetBlocklist,
+        },
+      ],
+    );
+  };
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -86,6 +147,7 @@ export const HomeScreen = () => {
       <Header />
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Timer Section */}
         {timer.isActive ? (
           <View style={styles.activeContainer}>
             <View style={styles.statusCard}>
@@ -160,9 +222,63 @@ export const HomeScreen = () => {
             </View>
           </View>
         )}
-      </ScrollView>
 
-      <Navbar />
+        {/* Settings Section */}
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>Blocklist Settings</Text>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Add to Blocklist</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., facebook.com"
+                value={newDomain}
+                onChangeText={setNewDomain}
+                autoCapitalize="none"
+                placeholderTextColor={colors.textLight}
+              />
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleAddDomain}
+              >
+                <Text style={styles.addButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>
+              Blocked Domains ({blocklist.length})
+            </Text>
+            <TouchableOpacity onPress={handleReset}>
+              <Text style={styles.resetText}>Reset Default</Text>
+            </TouchableOpacity>
+          </View>
+
+          {blocklist.map(item => (
+            <View key={item} style={styles.listItem}>
+              <View style={styles.domainInfo}>
+                <Text style={styles.domainIcon}>🚫</Text>
+                <Text style={styles.domainText}>{item}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => handleRemoveDomain(item)}
+              >
+                <Text style={styles.removeButtonText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            VPN: {isVPNActive ? 'Active' : 'Inactive'} | Icon:{' '}
+            {isAppHidden ? 'Hidden' : 'Visible'}
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -172,14 +288,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-
   content: {
     padding: 20,
-    paddingBottom: 100, // Extra padding for Navbar
     flexGrow: 1,
   },
   controlPanel: {
-    marginBottom: 20,
+    marginBottom: 30,
   },
   modeOptions: {
     flexDirection: 'row',
@@ -259,7 +373,7 @@ const styles = StyleSheet.create({
   activeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    marginBottom: 30,
   },
   statusCard: {
     backgroundColor: colors.statusBg,
@@ -293,13 +407,108 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     textAlign: 'center',
   },
+  settingsSection: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+    fontFamily: fonts.primary,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+    fontFamily: fonts.primary,
+  },
+  addButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  listTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontFamily: fonts.primary,
+  },
+  resetText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 1,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  domainInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  domainIcon: {
+    fontSize: 16,
+  },
+  domainText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  removeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+  },
+  removeButtonText: {
+    color: '#D32F2F',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   footer: {
     padding: 16,
-    backgroundColor: '#eff8ef',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
     alignItems: 'center',
-    marginBottom: 80, // Space for Navbar
+    marginTop: 20,
+    marginBottom: 20,
   },
   footerText: {
     fontSize: 12,
