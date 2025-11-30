@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
-import { fonts } from '../theme/fonts';
 
 const { width } = Dimensions.get('window');
 
@@ -41,9 +40,6 @@ export const Navbar = () => {
               🏠
             </Text>
           </View>
-          <Text style={[styles.label, isActive('Home') && styles.activeLabel]}>
-            Home
-          </Text>
         </TouchableOpacity>
 
         {/* Settings Button */}
@@ -66,11 +62,6 @@ export const Navbar = () => {
               ⚙️
             </Text>
           </View>
-          <Text
-            style={[styles.label, isActive('Settings') && styles.activeLabel]}
-          >
-            Settings
-          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -96,10 +87,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingBottom: 10, // Adjust for safe area if needed, or just visual balance
-    elevation: 20, // High elevation for shadow
+    paddingBottom: 0,
+    elevation: 20,
     shadowColor: 'rgba(10, 14, 18, 0.10)',
-    shadowOffset: { width: 0, height: -4 }, // Negative height for top shadow
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 1,
     shadowRadius: 20,
   },
@@ -107,32 +98,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    height: '100%',
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
   activeIconContainer: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   iconText: {
-    fontSize: 24,
-    color: colors.textLight,
+    fontSize: 28,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   activeIconText: {
-    color: colors.primary,
-  },
-  label: {
-    fontSize: 12,
-    color: colors.textLight,
-    fontFamily: fonts.primary,
-    fontWeight: '600',
-  },
-  activeLabel: {
-    color: colors.primary,
+    color: colors.white,
   },
 });
