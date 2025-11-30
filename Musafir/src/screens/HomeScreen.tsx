@@ -8,11 +8,13 @@ import {
   ScrollView,
   Alert,
   StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { TimerService } from '../services/TimerService';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
+import { Navbar } from '../components/Navbar';
 
 export const HomeScreen = () => {
   const { timer, isVPNActive, isAppHidden } = useAppStore();
@@ -77,11 +79,8 @@ export const HomeScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar
-        backgroundColor={colors.primaryLight}
-        barStyle="light-content"
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
 
       <View style={styles.header}>
         <Text style={styles.title}>Musafir</Text>
@@ -174,7 +173,9 @@ export const HomeScreen = () => {
           {isAppHidden ? 'Hidden' : 'Visible'}
         </Text>
       </View>
-    </View>
+
+      <Navbar />
+    </SafeAreaView>
   );
 };
 
@@ -184,15 +185,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    marginTop: 0,
     backgroundColor: colors.primaryDark,
     padding: 24,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+    // Distinct section look
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    marginBottom: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   title: {
-    marginTop: 30,
     fontFamily: fonts.primary,
     fontSize: 32,
     color: colors.white,
@@ -212,6 +220,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 100, // Extra padding for Navbar
     flexGrow: 1,
   },
   controlPanel: {
@@ -240,6 +249,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: fonts.primary,
   },
   customInputContainer: {
     marginBottom: 20,
@@ -289,6 +299,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
     fontSize: 15,
+    fontFamily: fonts.primary,
   },
   activeContainer: {
     alignItems: 'center',
@@ -333,6 +344,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     alignItems: 'center',
+    marginBottom: 80, // Space for Navbar
   },
   footerText: {
     fontSize: 12,

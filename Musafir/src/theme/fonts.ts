@@ -1,6 +1,6 @@
 export const fonts = {
-  primary: 'Musafir',
+  primary: 'ReemKufi-Regular',
   arabic: 'AlQalam',
-  regular: 'OpenSans-Regular', // Fallback if needed, but we'll try to use system or Musafir
-  bold: 'Musafir', // Using Musafir as the main bold font as per design
+  regular: 'ReemKufi-Regular',
+  bold: 'ReemKufi-Bold',
 };

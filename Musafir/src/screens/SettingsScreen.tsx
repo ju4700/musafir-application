@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
+import { Navbar } from '../components/Navbar';
 
 export const SettingsScreen = () => {
   const { blocklist, addBlockedDomain, removeBlockedDomain, resetBlocklist } =
@@ -71,7 +73,7 @@ export const SettingsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Blocklist Settings</Text>
       </View>
@@ -116,7 +118,8 @@ export const SettingsScreen = () => {
           </View>
         }
       />
-    </View>
+      <Navbar />
+    </SafeAreaView>
   );
 };
 
@@ -129,6 +132,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
     padding: 16,
     alignItems: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    marginBottom: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   title: {
     fontFamily: fonts.primary,
@@ -142,6 +153,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     gap: 12,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    elevation: 2,
+    marginBottom: 10,
   },
   input: {
     flex: 1,
@@ -163,9 +178,11 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: colors.white,
     fontWeight: '600',
+    fontFamily: fonts.primary,
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100, // Extra padding for Navbar
   },
   listHeader: {
     flexDirection: 'row',
@@ -193,6 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    elevation: 1,
   },
   itemText: {
     fontSize: 14,
