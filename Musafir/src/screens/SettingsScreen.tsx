@@ -8,7 +8,6 @@ import {
   Alert,
   SafeAreaView,
   StatusBar,
-  Linking,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { colors } from '../theme/colors';

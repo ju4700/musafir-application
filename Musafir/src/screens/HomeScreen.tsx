@@ -15,6 +15,7 @@ import { TimerService } from '../services/TimerService';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Header } from '../components/Header';
+import { Navbar } from '../components/Navbar';
 
 export const HomeScreen = () => {
   const {
@@ -220,6 +221,7 @@ export const HomeScreen = () => {
           </View>
         </View>
       </ScrollView>
+      <Navbar />
     </SafeAreaView>
   );
 };
@@ -232,6 +234,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     flexGrow: 1,
+    paddingBottom: 100, // Space for Navbar
   },
   controlPanel: {
     marginBottom: 20,
