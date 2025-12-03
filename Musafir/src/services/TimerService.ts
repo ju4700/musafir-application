@@ -175,21 +175,12 @@ export class TimerService {
         console.error('Background task error (non-fatal):', bgError);
       }
 
-      // Show success message
-      // Icon hiding is handled separately after user confirms
+      // Show success message - DO NOT hide icon or exit app for now
+      // This helps us debug if the VPN and timer are working correctly
       Alert.alert(
-        'Protection Activated',
-        'Musafir AI protection is now active!\n\nThe VPN is filtering harmful content. Tap OK to minimize the app.',
-        [{ 
-          text: 'OK',
-          onPress: () => {
-            // Schedule icon hiding for after the alert closes
-            // Use a native approach to minimize the app
-            setTimeout(() => {
-              TimerService.hideAppAndMinimize(store);
-            }, 300);
-          }
-        }]
+        'Protection Activated ✓',
+        'Musafir AI protection is now active!\n\n• VPN filtering is running\n• AI content blocker is enabled\n\nYou can now minimize the app manually. The protection will continue running in the background.',
+        [{ text: 'OK' }]
       );
 
       return true;
@@ -201,31 +192,6 @@ export class TimerService {
       Alert.alert('Error', 'Failed to start timer: ' + (error as Error).message);
       return false;
     }
-  }
-
-  /**
-   * Helper to hide app icon and minimize - runs async, won't block
-   */
-  private static hideAppAndMinimize(store: ReturnType<typeof useAppStore.getState>) {
-    // Run icon hiding in background - don't await to prevent blocking
-    (async () => {
-      try {
-        // First try to hide the icon
-        await AppIconManager.hideAppIcon();
-        store.setAppHidden(true);
-        console.log('App icon hidden successfully');
-      } catch (hideError) {
-        console.error('Icon hide error (continuing anyway):', hideError);
-        // Don't crash - just leave icon visible
-      }
-      
-      // Then minimize the app (exit to home)
-      try {
-        BackHandler.exitApp();
-      } catch (exitError) {
-        console.error('Exit app error:', exitError);
-      }
-    })();
   }
 
   /**
