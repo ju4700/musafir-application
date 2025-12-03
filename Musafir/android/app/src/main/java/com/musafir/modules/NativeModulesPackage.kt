@@ -17,7 +17,8 @@ class NativeModulesPackage : ReactPackage {
             DeviceAdminModule(reactContext),
             VPNModule(reactContext),
             AlarmManagerModule(reactContext),
-            SharedPrefsModule(reactContext)
+            SharedPrefsModule(reactContext),
+            AccessibilityServiceModule(reactContext)
         )
     }
 

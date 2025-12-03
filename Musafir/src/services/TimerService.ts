@@ -8,6 +8,7 @@ import * as AppIconManager from '../native/AppIconManager';
 import * as VPNModule from '../native/VPNModule';
 import * as DeviceAdminModule from '../native/DeviceAdminModule';
 import * as AlarmManagerModule from '../native/AlarmManagerModule';
+import * as AccessibilityServiceModule from '../native/AccessibilityServiceModule';
 import SharedPrefsModule from '../native/SharedPrefsModule';
 import {
   NOTIFICATION_CHANNEL_ID,
@@ -42,15 +43,27 @@ export class TimerService {
         return false;
       }
 
+      // Check accessibility service (critical for content blocking)
+      const accessibilityEnabled = await AccessibilityServiceModule.isAccessibilityEnabled();
+      if (!accessibilityEnabled) {
+        Alert.alert(
+          'Accessibility Service Required',
+          'The Content Blocker accessibility service must be enabled for Musafir to block harmful search queries and content in browsers.\n\nTap OK to open settings, then find "Musafir" and enable it.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => AccessibilityServiceModule.openAccessibilitySettings(),
+            },
+          ]
+        );
+        // Don't return false - allow user to continue but warn them
+      }
+
       // Request device admin (optional but recommended)
       const adminGranted = await DeviceAdminModule.requestDeviceAdmin();
       if (adminGranted) {
         useAppStore.getState().setDeviceAdmin(true);
-      } else {
-        Alert.alert(
-          'Device Admin',
-          'Device admin permission is recommended to prevent easy uninstallation while timer is active. You can continue without it.'
-        );
       }
 
       return true;
@@ -75,12 +88,40 @@ export class TimerService {
    */
   static async startTimer(durationMinutes: number): Promise<boolean> {
     try {
-      // Request permissions first time
-      const permissionsGranted = await TimerService.requestPermissions();
-      if (!permissionsGranted) {
+      // Check accessibility service before starting
+      const accessibilityEnabled = await AccessibilityServiceModule.isAccessibilityEnabled();
+      if (!accessibilityEnabled) {
+        Alert.alert(
+          'Content Blocker Not Enabled',
+          'The accessibility service is required to block harmful content in browsers. Without it, the protection will be limited.\n\nDo you want to enable it now?',
+          [
+            { 
+              text: 'Continue Anyway', 
+              style: 'destructive',
+              onPress: () => TimerService.startTimerInternal(durationMinutes),
+            },
+            {
+              text: 'Enable Now',
+              onPress: () => AccessibilityServiceModule.openAccessibilitySettings(),
+            },
+          ]
+        );
         return false;
       }
 
+      return await TimerService.startTimerInternal(durationMinutes);
+    } catch (error) {
+      console.error('Error starting timer:', error);
+      Alert.alert('Error', 'Failed to start timer: ' + (error as Error).message);
+      return false;
+    }
+  }
+
+  /**
+   * Internal method to actually start the timer
+   */
+  private static async startTimerInternal(durationMinutes: number): Promise<boolean> {
+    try {
       const store = useAppStore.getState();
 
       // Calculate end time

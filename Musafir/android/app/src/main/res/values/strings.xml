@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Musafir</string>
+    <string name="accessibility_service_description">Musafir Content Blocker monitors browsers and apps to protect you from harmful content including adult material, gambling, and other haram content. This service only activates when the protection timer is running.</string>
+    <string name="device_admin_description">Enable to prevent app uninstallation while protection is active</string>
 </resources>

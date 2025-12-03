@@ -16,6 +16,7 @@ import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Header } from '../components/Header';
 import * as DeviceAdminModule from '../native/DeviceAdminModule';
+import * as AccessibilityServiceModule from '../native/AccessibilityServiceModule';
 
 export const HomeScreen = () => {
   const {
@@ -27,13 +28,39 @@ export const HomeScreen = () => {
   } = useAppStore();
 
   const [customDuration, setCustomDuration] = useState('');
+  const [isAccessibilityEnabled, setAccessibilityEnabled] = useState(false);
 
   useEffect(() => {
     // Check for permissions on mount
     TimerService.requestPermissions();
     // Restore timer state
     TimerService.restoreTimerState();
+    // Check accessibility status
+    checkAccessibility();
   }, []);
+
+  const checkAccessibility = async () => {
+    const enabled = await AccessibilityServiceModule.isAccessibilityEnabled();
+    setAccessibilityEnabled(enabled);
+  };
+
+  const handleEnableAccessibility = () => {
+    Alert.alert(
+      'Enable Content Blocker',
+      'You need to enable the Musafir accessibility service to block harmful content in browsers.\n\n1. Tap "Open Settings"\n2. Find "Musafir" in the list\n3. Enable it and grant permissions',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Open Settings',
+          onPress: async () => {
+            await AccessibilityServiceModule.openAccessibilitySettings();
+            // Check again after a delay
+            setTimeout(checkAccessibility, 2000);
+          },
+        },
+      ]
+    );
+  };
 
   const handleToggleAdmin = async () => {
     if (isDeviceAdmin) {
@@ -237,10 +264,25 @@ export const HomeScreen = () => {
         {/* Status Section */}
         <View style={styles.statusSection}>
           <Text style={styles.statusSectionTitle}>Status</Text>
+          
+          {/* Content Blocker - Most Important */}
+          <TouchableOpacity 
+            style={[styles.statusRow, !isAccessibilityEnabled && styles.statusRowWarning]} 
+            onPress={!isAccessibilityEnabled ? handleEnableAccessibility : undefined}
+          >
+            <View style={[styles.statusIndicator, isAccessibilityEnabled ? styles.statusActive : styles.statusWarning]} />
+            <Text style={styles.statusLabel}>
+              Content Blocker: {isAccessibilityEnabled ? 'Enabled' : 'NOT ENABLED'}
+            </Text>
+            {!isAccessibilityEnabled && (
+              <Text style={styles.statusActionWarning}>Tap to enable!</Text>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.statusRow}>
             <View style={[styles.statusIndicator, isVPNActive && styles.statusActive]} />
             <Text style={styles.statusLabel}>
-              VPN Filter: {isVPNActive ? 'Active' : 'Ready'}
+              DNS Filter: {isVPNActive ? 'Active' : 'Ready'}
             </Text>
           </View>
           <View style={styles.statusRow}>
@@ -259,6 +301,17 @@ export const HomeScreen = () => {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Warning if accessibility not enabled */}
+        {!isAccessibilityEnabled && (
+          <TouchableOpacity style={styles.warningCard} onPress={handleEnableAccessibility}>
+            <Text style={styles.warningTitle}>⚠️ Important Setup Required</Text>
+            <Text style={styles.warningText}>
+              The Content Blocker service is not enabled. Without it, Musafir cannot block harmful search queries in Chrome and other browsers.
+            </Text>
+            <Text style={styles.warningButton}>Tap here to enable</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -492,5 +545,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+  },
+  statusRowWarning: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    marginVertical: 4,
+    paddingHorizontal: 8,
+  },
+  statusWarning: {
+    backgroundColor: '#FF9800',
+  },
+  statusActionWarning: {
+    fontSize: 12,
+    color: '#E65100',
+    fontWeight: '700',
+  },
+  warningCard: {
+    backgroundColor: '#FFF3E0',
+    borderWidth: 2,
+    borderColor: '#FF9800',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#BF360C',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  warningButton: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#E65100',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
