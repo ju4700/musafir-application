@@ -69,13 +69,6 @@ export const HomeScreen = () => {
     }
   };
 
-  useEffect(() => {
-    // Check for permissions on mount
-    TimerService.requestPermissions();
-    // Restore timer state
-    TimerService.restoreTimerState();
-  }, []);
-
   const handleStartTimer = async (minutes: number) => {
     if (minutes <= 0) {
       Alert.alert(
