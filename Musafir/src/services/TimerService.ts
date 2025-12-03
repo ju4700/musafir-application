@@ -1,4 +1,4 @@
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, BackHandler } from 'react-native';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native';
 import BackgroundActions from 'react-native-background-actions';
@@ -121,45 +121,111 @@ export class TimerService {
    * Internal method to actually start the timer
    */
   private static async startTimerInternal(durationMinutes: number): Promise<boolean> {
+    const store = useAppStore.getState();
+    
     try {
-      const store = useAppStore.getState();
-
       // Calculate end time
       const endTime = Date.now() + durationMinutes * 60 * 1000;
 
-      // Save timer state for persistence
-      await BlocklistService.saveTimerState(endTime, durationMinutes);
-      await SharedPrefsModule.saveTimerState(endTime, durationMinutes);
+      // Initialize notification channel first (required for Android)
+      await TimerService.initializeNotificationChannel();
 
-      // Start VPN with AI-powered filtering (no blocklist needed)
-      const vpnStarted = await VPNModule.startVPN();
-      if (!vpnStarted) {
-        Alert.alert('Error', 'Failed to start VPN service');
+      // Save timer state for persistence FIRST
+      try {
+        await BlocklistService.saveTimerState(endTime, durationMinutes);
+        await SharedPrefsModule.saveTimerState(endTime, durationMinutes);
+      } catch (saveError) {
+        console.error('Failed to save timer state:', saveError);
+        // Continue anyway - not critical
+      }
+
+      // Start VPN with AI-powered filtering
+      try {
+        const vpnStarted = await VPNModule.startVPN();
+        if (!vpnStarted) {
+          Alert.alert('Error', 'Failed to start VPN service. Please grant VPN permission.');
+          return false;
+        }
+        store.setVPNActive(true);
+        console.log('VPN started successfully');
+      } catch (vpnError) {
+        console.error('VPN start error:', vpnError);
+        Alert.alert('VPN Error', 'Could not start VPN protection. Please try again.');
         return false;
       }
-      store.setVPNActive(true);
 
-      // Hide app icon
-      await AppIconManager.hideAppIcon();
-      store.setAppHidden(true);
-
-      // Schedule timer expiry with AlarmManager
-      await AlarmManagerModule.scheduleTimerExpiry(endTime);
-
-      // Update store
+      // Update store state
       store.setTimerActive(true);
       store.setTimerEndTime(endTime);
       store.setDurationMinutes(durationMinutes);
 
-      // Start foreground background task
-      await TimerService.startBackgroundTask(endTime);
+      // Schedule timer expiry with AlarmManager (non-critical)
+      try {
+        await AlarmManagerModule.scheduleTimerExpiry(endTime);
+        console.log('Alarm scheduled successfully');
+      } catch (alarmError) {
+        console.error('Alarm scheduling error (non-fatal):', alarmError);
+      }
+
+      // Start foreground background task (non-critical)
+      try {
+        await TimerService.startBackgroundTask(endTime);
+        console.log('Background task started successfully');
+      } catch (bgError) {
+        console.error('Background task error (non-fatal):', bgError);
+      }
+
+      // Show success message
+      // Icon hiding is handled separately after user confirms
+      Alert.alert(
+        'Protection Activated',
+        'Musafir AI protection is now active!\n\nThe VPN is filtering harmful content. Tap OK to minimize the app.',
+        [{ 
+          text: 'OK',
+          onPress: () => {
+            // Schedule icon hiding for after the alert closes
+            // Use a native approach to minimize the app
+            setTimeout(() => {
+              TimerService.hideAppAndMinimize(store);
+            }, 300);
+          }
+        }]
+      );
 
       return true;
     } catch (error) {
       console.error('Error starting timer:', error);
+      // Reset state on failure
+      store.setTimerActive(false);
+      store.setVPNActive(false);
       Alert.alert('Error', 'Failed to start timer: ' + (error as Error).message);
       return false;
     }
+  }
+
+  /**
+   * Helper to hide app icon and minimize - runs async, won't block
+   */
+  private static hideAppAndMinimize(store: ReturnType<typeof useAppStore.getState>) {
+    // Run icon hiding in background - don't await to prevent blocking
+    (async () => {
+      try {
+        // First try to hide the icon
+        await AppIconManager.hideAppIcon();
+        store.setAppHidden(true);
+        console.log('App icon hidden successfully');
+      } catch (hideError) {
+        console.error('Icon hide error (continuing anyway):', hideError);
+        // Don't crash - just leave icon visible
+      }
+      
+      // Then minimize the app (exit to home)
+      try {
+        BackHandler.exitApp();
+      } catch (exitError) {
+        console.error('Exit app error:', exitError);
+      }
+    })();
   }
 
   /**
@@ -206,45 +272,61 @@ export class TimerService {
     const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(() => resolve(), ms));
 
     const veryIntensiveTask = async (_taskData?: any) => {
-      const store = useAppStore.getState();
+      try {
+        const store = useAppStore.getState();
 
-      while (BackgroundActions.isRunning()) {
-        const now = Date.now();
-        const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+        while (BackgroundActions.isRunning()) {
+          try {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
 
-        if (remaining <= 0) {
-          // Timer expired
-          await TimerService.handleTimerExpiry();
-          break;
+            if (remaining <= 0) {
+              // Timer expired
+              await TimerService.handleTimerExpiry();
+              break;
+            }
+
+            store.setRemainingSeconds(remaining);
+
+            // Update notification (non-critical)
+            try {
+              await TimerService.updateTimerNotification(remaining);
+            } catch (notifError) {
+              console.error('Notification update error:', notifError);
+            }
+
+            // Wait 10 seconds before next update
+            await sleep(10000);
+          } catch (loopError) {
+            console.error('Background loop error:', loopError);
+            await sleep(5000); // Wait and retry
+          }
         }
-
-        store.setRemainingSeconds(remaining);
-
-        // Update notification
-        await TimerService.updateTimerNotification(remaining);
-
-        // Wait 10 seconds before next update
-        await sleep(10000);
+      } catch (taskError) {
+        console.error('Background task error:', taskError);
       }
     };
 
     const options = {
-      taskName: 'Musafir Timer',
-      taskTitle: 'مسافر Protection Active',
+      taskName: 'MusafirTimer',
+      taskTitle: 'Musafir Protection Active',
       taskDesc: 'AI content filtering is running',
       taskIcon: {
         name: 'ic_launcher',
         type: 'mipmap',
       },
-      color: '#ff00ff',
-      linkingURI: 'musafir://timer',
-      progressBar: {
-        max: 100,
-        value: 0,
-      },
+      color: '#1e3a5f',
+      // Removed linkingURI as it can cause issues
+      // Removed progressBar as it can cause issues on some devices
     };
 
-    await BackgroundActions.start(veryIntensiveTask, options);
+    // Wrap in try-catch to prevent crash
+    try {
+      await BackgroundActions.start(veryIntensiveTask, options);
+    } catch (startError) {
+      console.error('Failed to start background actions:', startError);
+      // Continue without background task - VPN and alarm still work
+    }
   }
 
   /**
