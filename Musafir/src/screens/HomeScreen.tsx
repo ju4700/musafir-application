@@ -15,7 +15,7 @@ import { TimerService } from '../services/TimerService';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Header } from '../components/Header';
-import { Navbar } from '../components/Navbar';
+import * as DeviceAdminModule from '../native/DeviceAdminModule';
 
 export const HomeScreen = () => {
   const {
@@ -23,9 +23,51 @@ export const HomeScreen = () => {
     isVPNActive,
     isAppHidden,
     isDeviceAdmin,
+    setDeviceAdmin,
   } = useAppStore();
 
   const [customDuration, setCustomDuration] = useState('');
+
+  useEffect(() => {
+    // Check for permissions on mount
+    TimerService.requestPermissions();
+    // Restore timer state
+    TimerService.restoreTimerState();
+  }, []);
+
+  const handleToggleAdmin = async () => {
+    if (isDeviceAdmin) {
+      Alert.alert(
+        'Remove Protection?',
+        'This will allow the app to be uninstalled. Are you sure?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await DeviceAdminModule.removeDeviceAdmin();
+                setDeviceAdmin(false);
+              } catch (error) {
+                Alert.alert('Error', 'Failed to remove device admin.');
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      try {
+        const granted = await DeviceAdminModule.requestDeviceAdmin();
+        setDeviceAdmin(granted);
+        if (granted) {
+          Alert.alert('Success', 'Uninstall protection is now enabled.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to enable device admin.');
+      }
+    }
+  };
 
   useEffect(() => {
     // Check for permissions on mount
@@ -201,6 +243,7 @@ export const HomeScreen = () => {
 
         {/* Status Section */}
         <View style={styles.statusSection}>
+          <Text style={styles.statusSectionTitle}>Status</Text>
           <View style={styles.statusRow}>
             <View style={[styles.statusIndicator, isVPNActive && styles.statusActive]} />
             <Text style={styles.statusLabel}>
@@ -213,15 +256,17 @@ export const HomeScreen = () => {
               App Icon: {isAppHidden ? 'Hidden' : 'Visible'}
             </Text>
           </View>
-          <View style={styles.statusRow}>
+          <TouchableOpacity style={styles.statusRow} onPress={handleToggleAdmin}>
             <View style={[styles.statusIndicator, isDeviceAdmin && styles.statusActive]} />
             <Text style={styles.statusLabel}>
               Uninstall Protection: {isDeviceAdmin ? 'Enabled' : 'Disabled'}
             </Text>
-          </View>
+            <Text style={styles.statusAction}>
+              {isDeviceAdmin ? 'Tap to disable' : 'Tap to enable'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-      <Navbar />
     </SafeAreaView>
   );
 };
@@ -234,7 +279,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     flexGrow: 1,
-    paddingBottom: 100, // Space for Navbar
+    paddingBottom: 20,
   },
   controlPanel: {
     marginBottom: 20,
@@ -442,5 +487,17 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 14,
     color: colors.text,
+    flex: 1,
+  },
+  statusSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  statusAction: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
 });

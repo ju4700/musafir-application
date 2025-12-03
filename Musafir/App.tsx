@@ -6,7 +6,6 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { HomeScreen } from './src/screens/HomeScreen';
-import { SettingsScreen } from './src/screens/SettingsScreen';
 import { TimerService } from './src/services/TimerService';
 import { colors } from './src/theme/colors';
 import { fonts } from './src/theme/fonts';
@@ -43,11 +42,6 @@ function App(): React.JSX.Element {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Settings"
-              component={SettingsScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
