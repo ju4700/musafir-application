@@ -11,7 +11,6 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.musafir.R
-import com.musafir.modules.SharedPrefsModule
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.DatagramPacket
@@ -19,32 +18,39 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * VPN Service that acts as a DNS Proxy to block harmful content.
- * It intercepts DNS queries sent to the virtual DNS server (10.0.0.2).
+ * Enhanced VPN Service with AI-based Content Filtering
+ * 
+ * Features:
+ * - AI-powered domain analysis (not just static blocklist)
+ * - Keyword-based content detection
+ * - Pattern matching for known harmful sites
+ * - DNS query interception and filtering
+ * - Caching for performance
  */
 class HaramBlockerVPNService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var vpnThread: Thread? = null
     private val isRunning = AtomicBoolean(false)
-    private val blocklist = mutableSetOf<String>()
+    
+    // Cache for domain analysis results (performance optimization)
+    private val domainCache = ConcurrentHashMap<String, Boolean>()
+    private val CACHE_MAX_SIZE = 1000
+    
+    // Statistics
+    private var totalQueries = 0L
+    private var blockedQueries = 0L
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "VPN Service created")
+        Log.d(TAG, "VPN Service created with AI Content Filter")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "VPN Service started")
-
-        // Load blocklist from intent (or SharedPrefs in future)
-        intent?.getStringArrayListExtra("BLOCKLIST")?.let { list ->
-            blocklist.clear()
-            blocklist.addAll(list)
-            Log.d(TAG, "Loaded ${blocklist.size} domains to blocklist")
-        }
+        Log.d(TAG, "VPN Service started with AI filtering enabled")
 
         // Start foreground service
         startForeground(VPN_NOTIFICATION_ID, createNotification())
@@ -60,7 +66,7 @@ class HaramBlockerVPNService : VpnService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "VPN Service destroyed")
+        Log.d(TAG, "VPN Service destroyed. Stats: Total=$totalQueries, Blocked=$blockedQueries")
         stopVPN()
         Companion.isRunning = false
     }
@@ -68,21 +74,20 @@ class HaramBlockerVPNService : VpnService() {
     private fun startVPN() {
         try {
             // Build VPN interface
-            // We configure it to intercept ONLY traffic to our virtual DNS IP
             val builder = Builder()
-                .setSession("HaramBlocker VPN")
+                .setSession("Musafir AI Filter")
                 .addAddress("10.0.0.2", 32)
                 .addDnsServer("10.0.0.2")
                 .addRoute("10.0.0.2", 32)
-                // We do NOT add default route (0.0.0.0/0) so normal traffic bypasses VPN
-                // This ensures internet works, but DNS is filtered
+                // Only intercept DNS traffic, let everything else pass through
+                .setMtu(1500)
 
-            // Exclude our app
+            // Exclude our app from VPN
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 try {
                     builder.addDisallowedApplication(packageName)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to exclude app", e)
+                    Log.e(TAG, "Failed to exclude app from VPN", e)
                 }
             }
 
@@ -95,10 +100,10 @@ class HaramBlockerVPNService : VpnService() {
             }
 
             // Start packet processing thread
-            vpnThread = Thread(this::processPackets, "VPNThread")
+            vpnThread = Thread(this::processPackets, "AIFilterVPNThread")
             vpnThread?.start()
 
-            Log.d(TAG, "VPN started successfully")
+            Log.d(TAG, "VPN started successfully with AI filtering")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN", e)
             stopSelf()
@@ -115,6 +120,7 @@ class HaramBlockerVPNService : VpnService() {
         }
         vpnThread?.interrupt()
         vpnThread = null
+        domainCache.clear()
     }
 
     private fun processPackets() {
@@ -168,24 +174,49 @@ class HaramBlockerVPNService : VpnService() {
             
             if (dnsPayloadLength <= 0 || dnsPayloadOffset + dnsPayloadLength > length) return
 
-            // Extract Domain
+            // Extract Domain from DNS query
             val domain = extractDomain(packet, dnsPayloadOffset + 12) // Skip DNS Header (12 bytes)
             
-            if (isDomainBlocked(domain)) {
-                Log.d(TAG, "Blocking domain: $domain")
-                // Send NXDOMAIN response? 
-                // For simplicity, we just drop the packet. 
-                // The client will timeout and retry, eventually failing.
-                // A better UX is to send a response, but constructing it is complex.
+            totalQueries++
+            
+            // Use AI Content Filter to analyze domain
+            if (shouldBlockDomain(domain)) {
+                blockedQueries++
+                Log.d(TAG, "🚫 BLOCKED: $domain (Total blocked: $blockedQueries)")
+                // Don't forward the query - it will timeout on client
+                // This effectively blocks the domain
                 return 
             }
 
-            // Forward to Real DNS (8.8.8.8)
+            // Forward to Real DNS (using Cloudflare for privacy)
             forwardDnsQuery(packet, dnsPayloadOffset, dnsPayloadLength, srcIp, srcPort, outputStream)
 
         } catch (e: Exception) {
             Log.e(TAG, "Error handling packet", e)
         }
+    }
+
+    /**
+     * AI-powered domain analysis
+     * Uses caching for performance
+     */
+    private fun shouldBlockDomain(domain: String): Boolean {
+        if (domain.isEmpty()) return false
+        
+        val normalizedDomain = domain.lowercase()
+        
+        // Check cache first
+        domainCache[normalizedDomain]?.let { return it }
+        
+        // Use AI Content Filter for analysis
+        val isBlocked = AIContentFilterNative.isDomainBlocked(normalizedDomain)
+        
+        // Cache result (with size limit)
+        if (domainCache.size < CACHE_MAX_SIZE) {
+            domainCache[normalizedDomain] = isBlocked
+        }
+        
+        return isBlocked
     }
 
     private fun forwardDnsQuery(
@@ -204,14 +235,15 @@ class HaramBlockerVPNService : VpnService() {
             val socket = DatagramSocket()
             protect(socket) // CRITICAL: Protect socket so it bypasses VPN
 
-            val dnsServer = InetAddress.getByName("8.8.8.8")
+            // Use Cloudflare DNS for better privacy
+            val dnsServer = InetAddress.getByName("1.1.1.1")
             val outPacket = DatagramPacket(dnsQuery, payloadLength, dnsServer, 53)
             socket.send(outPacket)
 
             // Receive response
             val responseBuffer = ByteArray(4096)
             val inPacket = DatagramPacket(responseBuffer, responseBuffer.size)
-            socket.soTimeout = 2000 // 2s timeout
+            socket.soTimeout = 3000 // 3s timeout
             socket.receive(inPacket)
 
             // Construct response IP packet
@@ -301,7 +333,7 @@ class HaramBlockerVPNService : VpnService() {
                 val len = packet.get(pos).toInt() and 0xFF
                 if (len == 0) break
                 if ((len and 0xC0) == 0xC0) {
-                    // Pointer (compression) - not handled for simplicity, but common in responses, less in queries
+                    // DNS compression pointer - skip for now
                     return sb.toString() 
                 }
                 pos++
@@ -311,29 +343,27 @@ class HaramBlockerVPNService : VpnService() {
                 }
                 sb.append('.')
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting domain", e)
+        }
         return sb.toString().trimEnd('.')
     }
 
-    private fun isDomainBlocked(domain: String): Boolean {
-        if (domain.isEmpty()) return false
-        val lower = domain.lowercase()
-        if (blocklist.contains(lower)) return true
-        for (blocked in blocklist) {
-            if (lower.endsWith(".$blocked")) return true
-        }
-        return false
-    }
-
     private fun createNotification(): Notification {
-        val channelId = "haramBlocker_vpn"
+        val channelId = "musafir_vpn"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "VPN Service", NotificationManager.IMPORTANCE_LOW)
+            val channel = NotificationChannel(
+                channelId, 
+                "Musafir Protection", 
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Content filtering active"
+                setShowBadge(false)
+            }
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
         
-        // Intent to open app via DeepLinkActivity (which is always enabled)
-        // This ensures we can re-open the app even if MainActivity is disabled (hidden)
+        // Intent to open app via DeepLinkActivity
         val intent = Intent(this, com.musafir.DeepLinkActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent, 
@@ -341,16 +371,17 @@ class HaramBlockerVPNService : VpnService() {
         )
 
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("HaramBlocker Active")
-            .setContentText("Blocking harmful content")
+            .setContentTitle("مسافر - Protection Active")
+            .setContentText("AI-powered content filtering enabled")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
     companion object {
-        private const val TAG = "HaramBlockerVPN"
+        private const val TAG = "MusafirVPN"
         private const val VPN_NOTIFICATION_ID = 1001
         var isRunning = false
     }

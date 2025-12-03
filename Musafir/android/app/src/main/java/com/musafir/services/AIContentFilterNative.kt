@@ -1,0 +1,339 @@
+package com.musafir.services
+
+import android.util.Log
+
+/**
+ * AI-based Content Filter for detecting haram/adult content
+ * Uses multi-layer filtering: keywords, patterns, and heuristics
+ */
+object AIContentFilterNative {
+    private const val TAG = "AIContentFilter"
+
+    // ========================================================================
+    // BLOCKED KEYWORD CATEGORIES
+    // ========================================================================
+
+    private val ADULT_KEYWORDS = setOf(
+        "porn", "xxx", "sex", "nude", "naked", "erotic", "adult", "nsfw",
+        "hentai", "milf", "teen", "lesbian", "gay", "anal", "oral", "blowjob",
+        "handjob", "masturbat", "orgasm", "fetish", "bdsm", "bondage", "dildo",
+        "vibrator", "stripper", "escort", "prostitut", "hooker", "whore",
+        "slut", "camgirl", "onlyfans", "fansly", "chaturbate", "livejasmin",
+        "pornhub", "xvideos", "xnxx", "redtube", "youporn", "xhamster",
+        "brazzers", "bangbros", "realitykings", "naughtyamerica",
+        "playboy", "penthouse", "hustler", "boobs", "tits", "pussy", "cock",
+        "dick", "penis", "vagina", "breasts", "buttocks", "genitals",
+        "intercourse", "fornication", "adultery", "threesome", "orgy",
+        "swinger", "cuckold", "incest", "rape", "molest", "spankbang",
+        "eporner", "tube8", "motherless", "keezmovies", "extremetube",
+        "youjizz", "cam4", "stripchat", "myfreecams", "bongacams",
+        "adultfriendfinder", "fling", "casual sex"
+    )
+
+    private val GAMBLING_KEYWORDS = setOf(
+        "casino", "poker", "blackjack", "roulette", "slots", "betting",
+        "gamble", "gambling", "bet365", "betway", "pokerstars", "888casino",
+        "unibet", "bwin", "draftkings", "fanduel", "sportsbook", "bookie",
+        "wager", "jackpot", "lottery", "lotto", "scratch", "keno",
+        "baccarat", "craps", "sportsbetting", "odds", "parlay"
+    )
+
+    private val ALCOHOL_KEYWORDS = setOf(
+        "alcohol", "beer", "wine", "whiskey", "vodka", "rum", "gin", "tequila",
+        "brandy", "cognac", "liquor", "spirits", "cocktail", "bartender",
+        "brewery", "distillery", "winery", "pub", "bar", "tavern",
+        "drunk", "intoxicated", "booze", "drinking", "champagne"
+    )
+
+    private val DRUG_KEYWORDS = setOf(
+        "cocaine", "heroin", "meth", "marijuana", "cannabis", "weed",
+        "hash", "hashish", "ecstasy", "mdma", "lsd", "mushroom", "psilocybin",
+        "ketamine", "fentanyl", "opioid", "narcotic", "dealer", "trafficking",
+        "overdose", "inject", "snort"
+    )
+
+    private val VIOLENCE_KEYWORDS = setOf(
+        "gore", "murder", "torture", "mutilat", "beheading", "decapitat",
+        "dismember", "bloodbath", "massacre", "slaughter", "execution",
+        "suicide", "self-harm", "cutting"
+    )
+
+    private val DATING_KEYWORDS = setOf(
+        "tinder", "bumble", "hinge", "grindr", "hookup", "one night stand",
+        "fling", "friends with benefits", "fwb", "sugar daddy",
+        "sugar baby", "seeking arrangement", "ashley madison"
+    )
+
+    // ========================================================================
+    // BLOCKED DOMAIN PATTERNS (Regex)
+    // ========================================================================
+
+    private val BLOCKED_DOMAIN_PATTERNS = listOf(
+        Regex("porn", RegexOption.IGNORE_CASE),
+        Regex("xxx", RegexOption.IGNORE_CASE),
+        Regex("sex(?!pert|ton)", RegexOption.IGNORE_CASE),
+        Regex("nude", RegexOption.IGNORE_CASE),
+        Regex("adult(?!swim)", RegexOption.IGNORE_CASE),
+        Regex("nsfw", RegexOption.IGNORE_CASE),
+        Regex("hentai", RegexOption.IGNORE_CASE),
+        Regex("erotic", RegexOption.IGNORE_CASE),
+        Regex("fetish", RegexOption.IGNORE_CASE),
+        Regex("cam(?:girl|model|site)", RegexOption.IGNORE_CASE),
+        Regex("escort", RegexOption.IGNORE_CASE),
+        Regex("strip(?:per|club)", RegexOption.IGNORE_CASE),
+        Regex("xvideos", RegexOption.IGNORE_CASE),
+        Regex("xnxx", RegexOption.IGNORE_CASE),
+        Regex("pornhub", RegexOption.IGNORE_CASE),
+        Regex("redtube", RegexOption.IGNORE_CASE),
+        Regex("youporn", RegexOption.IGNORE_CASE),
+        Regex("xhamster", RegexOption.IGNORE_CASE),
+        Regex("spankbang", RegexOption.IGNORE_CASE),
+        Regex("eporner", RegexOption.IGNORE_CASE),
+        Regex("tube8", RegexOption.IGNORE_CASE),
+        Regex("brazzers", RegexOption.IGNORE_CASE),
+        Regex("bangbros", RegexOption.IGNORE_CASE),
+        Regex("onlyfans", RegexOption.IGNORE_CASE),
+        Regex("fansly", RegexOption.IGNORE_CASE),
+        Regex("chaturbate", RegexOption.IGNORE_CASE),
+        Regex("livejasmin", RegexOption.IGNORE_CASE),
+        Regex("stripchat", RegexOption.IGNORE_CASE),
+        Regex("cam4", RegexOption.IGNORE_CASE),
+        Regex("myfreecams", RegexOption.IGNORE_CASE),
+        Regex("bongacams", RegexOption.IGNORE_CASE),
+        Regex("casino", RegexOption.IGNORE_CASE),
+        Regex("poker(?!mon)", RegexOption.IGNORE_CASE),
+        Regex("bet365", RegexOption.IGNORE_CASE),
+        Regex("betway", RegexOption.IGNORE_CASE),
+        Regex("pokerstars", RegexOption.IGNORE_CASE),
+        Regex("888(?:casino|poker|sport)", RegexOption.IGNORE_CASE),
+        Regex("unibet", RegexOption.IGNORE_CASE),
+        Regex("bwin", RegexOption.IGNORE_CASE),
+        Regex("draftkings", RegexOption.IGNORE_CASE),
+        Regex("fanduel", RegexOption.IGNORE_CASE),
+        Regex("sportsbook", RegexOption.IGNORE_CASE),
+        Regex("gambling", RegexOption.IGNORE_CASE),
+        Regex("tinder", RegexOption.IGNORE_CASE),
+        Regex("grindr", RegexOption.IGNORE_CASE),
+        Regex("ashleymadison", RegexOption.IGNORE_CASE),
+        Regex("seekingarrangement", RegexOption.IGNORE_CASE),
+        Regex("adultfriendfinder", RegexOption.IGNORE_CASE)
+    )
+
+    // ========================================================================
+    // SAFE DOMAINS (Whitelist)
+    // ========================================================================
+
+    private val SAFE_DOMAINS = setOf(
+        "google.com", "google.co", "googleapis.com", "gstatic.com",
+        "youtube.com", "youtu.be", "ytimg.com",
+        "facebook.com", "fbcdn.net",
+        "instagram.com", "cdninstagram.com",
+        "twitter.com", "x.com", "twimg.com",
+        "linkedin.com",
+        "github.com", "githubusercontent.com",
+        "stackoverflow.com", "stackexchange.com",
+        "wikipedia.org", "wikimedia.org",
+        "amazon.com", "amazonaws.com",
+        "microsoft.com", "msn.com", "bing.com",
+        "apple.com", "icloud.com",
+        "reddit.com", "redd.it", "redditmedia.com",
+        "quora.com",
+        "medium.com",
+        "bbc.com", "bbc.co.uk",
+        "cnn.com",
+        "nytimes.com",
+        "theguardian.com",
+        "reuters.com",
+        "aljazeera.com", "aljazeera.net",
+        "islamqa.info",
+        "islamweb.net",
+        "quran.com",
+        "sunnah.com",
+        "cloudflare.com", "cloudflare-dns.com",
+        "akamai.com", "akamaized.net",
+        "fastly.net",
+        "whatsapp.com", "whatsapp.net",
+        "telegram.org",
+        "signal.org"
+    )
+
+    // ========================================================================
+    // CONTENT ANALYSIS
+    // ========================================================================
+
+    data class FilterResult(
+        val isBlocked: Boolean,
+        val category: String,
+        val confidence: Float,
+        val matchedKeywords: List<String>,
+        val reason: String
+    )
+
+    /**
+     * Analyze domain for harmful content
+     * Returns true if domain should be blocked
+     */
+    fun isDomainBlocked(domain: String): Boolean {
+        val result = analyzeDomain(domain)
+        Log.d(TAG, "Domain analysis: $domain -> blocked=${result.isBlocked}, category=${result.category}")
+        return result.isBlocked
+    }
+
+    /**
+     * Full domain analysis with details
+     */
+    fun analyzeDomain(domain: String): FilterResult {
+        val normalizedDomain = domain.lowercase().trim()
+
+        // Check whitelist first
+        for (safe in SAFE_DOMAINS) {
+            if (normalizedDomain == safe || normalizedDomain.endsWith(".$safe")) {
+                return FilterResult(
+                    isBlocked = false,
+                    category = "safe",
+                    confidence = 1f,
+                    matchedKeywords = emptyList(),
+                    reason = "Whitelisted domain"
+                )
+            }
+        }
+
+        // Check blocked domain patterns (regex)
+        for (pattern in BLOCKED_DOMAIN_PATTERNS) {
+            if (pattern.containsMatchIn(normalizedDomain)) {
+                val category = categorizePattern(pattern.pattern)
+                return FilterResult(
+                    isBlocked = true,
+                    category = category,
+                    confidence = 0.95f,
+                    matchedKeywords = listOf(pattern.pattern),
+                    reason = "Domain matches $category pattern"
+                )
+            }
+        }
+
+        // Analyze domain name as text (check keywords)
+        val textResult = analyzeText(normalizedDomain.replace(Regex("[.-]"), " "))
+        if (textResult.isBlocked) {
+            return textResult.copy(reason = "Domain name contains ${textResult.category} keywords")
+        }
+
+        return FilterResult(
+            isBlocked = false,
+            category = "safe",
+            confidence = 0.5f,
+            matchedKeywords = emptyList(),
+            reason = "No harmful patterns detected"
+        )
+    }
+
+    /**
+     * Analyze text content for harmful keywords
+     */
+    fun analyzeText(text: String): FilterResult {
+        val normalizedText = text.lowercase().trim()
+        val matchedKeywords = mutableListOf<String>()
+        var category = "safe"
+        var confidence = 0f
+
+        // Check adult keywords (highest priority)
+        for (keyword in ADULT_KEYWORDS) {
+            if (normalizedText.contains(keyword)) {
+                matchedKeywords.add(keyword)
+                category = "adult"
+                confidence = minOf(1f, confidence + 0.3f)
+            }
+        }
+
+        // Check gambling keywords
+        if (category == "safe") {
+            for (keyword in GAMBLING_KEYWORDS) {
+                if (normalizedText.contains(keyword)) {
+                    matchedKeywords.add(keyword)
+                    category = "gambling"
+                    confidence = minOf(1f, confidence + 0.25f)
+                }
+            }
+        }
+
+        // Check alcohol keywords
+        if (category == "safe") {
+            for (keyword in ALCOHOL_KEYWORDS) {
+                if (normalizedText.contains(keyword)) {
+                    matchedKeywords.add(keyword)
+                    category = "alcohol"
+                    confidence = minOf(1f, confidence + 0.2f)
+                }
+            }
+        }
+
+        // Check drug keywords
+        if (category == "safe") {
+            for (keyword in DRUG_KEYWORDS) {
+                if (normalizedText.contains(keyword)) {
+                    matchedKeywords.add(keyword)
+                    category = "drugs"
+                    confidence = minOf(1f, confidence + 0.25f)
+                }
+            }
+        }
+
+        // Check violence keywords
+        if (category == "safe") {
+            for (keyword in VIOLENCE_KEYWORDS) {
+                if (normalizedText.contains(keyword)) {
+                    matchedKeywords.add(keyword)
+                    category = "violence"
+                    confidence = minOf(1f, confidence + 0.2f)
+                }
+            }
+        }
+
+        // Check dating keywords
+        if (category == "safe") {
+            for (keyword in DATING_KEYWORDS) {
+                if (normalizedText.contains(keyword)) {
+                    matchedKeywords.add(keyword)
+                    category = "dating"
+                    confidence = minOf(1f, confidence + 0.2f)
+                }
+            }
+        }
+
+        val isBlocked = confidence >= 0.3f
+        val reason = if (isBlocked) {
+            "Detected $category content: ${matchedKeywords.take(3).joinToString(", ")}"
+        } else {
+            "Content appears safe"
+        }
+
+        return FilterResult(
+            isBlocked = isBlocked,
+            category = category,
+            confidence = confidence,
+            matchedKeywords = matchedKeywords,
+            reason = reason
+        )
+    }
+
+    /**
+     * Get all blocked keywords (for external use)
+     */
+    fun getAllBlockedKeywords(): Set<String> {
+        return ADULT_KEYWORDS + GAMBLING_KEYWORDS + ALCOHOL_KEYWORDS + 
+               DRUG_KEYWORDS + VIOLENCE_KEYWORDS + DATING_KEYWORDS
+    }
+
+    /**
+     * Helper to categorize a pattern
+     */
+    private fun categorizePattern(pattern: String): String {
+        val lower = pattern.lowercase()
+        return when {
+            Regex("porn|xxx|sex|nude|adult|nsfw|hentai|erotic|fetish|cam|escort|strip|xvideos|xnxx|pornhub|redtube|youporn|xhamster|brazzers|onlyfans|chaturbate", RegexOption.IGNORE_CASE).containsMatchIn(lower) -> "adult"
+            Regex("casino|poker|bet|gambling|sportsbook|draftkings|fanduel", RegexOption.IGNORE_CASE).containsMatchIn(lower) -> "gambling"
+            Regex("tinder|grindr|ashley|dating|hookup", RegexOption.IGNORE_CASE).containsMatchIn(lower) -> "dating"
+            else -> "adult"
+        }
+    }
+}

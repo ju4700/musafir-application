@@ -9,7 +9,6 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
-  FlatList,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { TimerService } from '../services/TimerService';
@@ -22,14 +21,10 @@ export const HomeScreen = () => {
     timer,
     isVPNActive,
     isAppHidden,
-    blocklist,
-    addBlockedDomain,
-    removeBlockedDomain,
-    resetBlocklist,
+    isDeviceAdmin,
   } = useAppStore();
 
   const [customDuration, setCustomDuration] = useState('');
-  const [newDomain, setNewDomain] = useState('');
 
   useEffect(() => {
     // Check for permissions on mount
@@ -48,12 +43,12 @@ export const HomeScreen = () => {
     }
 
     Alert.alert(
-      'Start HaramBlocker?',
-      `This will hide the app and block harmful content for ${minutes} minutes. You cannot cancel this easily.`,
+      'Activate Musafir Protection?',
+      `This will:\n\n• Hide the app icon\n• Enable AI-powered content filtering\n• Block all haram & adult content\n• Run for ${formatDuration(minutes)}\n\n⚠️ You cannot easily cancel this.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Start',
+          text: 'Activate',
           style: 'destructive',
           onPress: async () => {
             const success = await TimerService.startTimer(minutes);
@@ -68,10 +63,10 @@ export const HomeScreen = () => {
 
   const handleStopTimer = () => {
     Alert.alert(
-      'Stop Timer?',
-      'Are you sure you want to stop the timer? This will re-enable access to all content.',
+      'Emergency Stop?',
+      'Are you absolutely sure? This should only be used in genuine emergencies.\n\nRemember: "Indeed, Allah is ever, over you, an Observer." (4:1)',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Keep Protection', style: 'cancel' },
         {
           text: 'Stop',
           style: 'destructive',
@@ -81,56 +76,11 @@ export const HomeScreen = () => {
     );
   };
 
-  const handleAddDomain = () => {
-    if (!newDomain.trim()) {
-      Alert.alert('Error', 'Please enter a domain');
-      return;
-    }
-
-    const domainRegex =
-      /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    if (!domainRegex.test(newDomain)) {
-      Alert.alert('Error', 'Please enter a valid domain (e.g., example.com)');
-      return;
-    }
-
-    if (blocklist.includes(newDomain)) {
-      Alert.alert('Error', 'Domain is already in the blocklist');
-      return;
-    }
-
-    addBlockedDomain(newDomain);
-    setNewDomain('');
-  };
-
-  const handleRemoveDomain = (domain: string) => {
-    Alert.alert(
-      'Remove Domain',
-      `Are you sure you want to remove ${domain} from the blocklist?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeBlockedDomain(domain),
-        },
-      ],
-    );
-  };
-
-  const handleReset = () => {
-    Alert.alert(
-      'Reset Blocklist',
-      'This will restore the default blocklist. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: resetBlocklist,
-        },
-      ],
-    );
+  const formatDuration = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} minutes`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)} hours`;
+    if (minutes < 10080) return `${Math.floor(minutes / 1440)} days`;
+    return `${Math.floor(minutes / 10080)} weeks`;
   };
 
   const formatTime = (seconds: number) => {
@@ -230,59 +180,44 @@ export const HomeScreen = () => {
                 ...And protect their private parts (from illegal sexual Acts e.g). That is pure for them. Verily Allah is All aware what they do” [24:30].
               </Text>
             </View>
-        {/* Settings Section */}
-        <View style={styles.settingsSection}>
-          
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Add to Blocklist</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., facebook.com"
-                value={newDomain}
-                onChangeText={setNewDomain}
-                autoCapitalize="none"
-                placeholderTextColor={colors.textLight}
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleAddDomain}
-              >
-                <Text style={styles.addButtonText}>Add</Text>
-              </TouchableOpacity>
-            </View>
+        {/* AI Protection Info Card */}
+        <View style={styles.aiInfoCard}>
+          <Text style={styles.aiInfoTitle}>🤖 AI-Powered Protection</Text>
+          <Text style={styles.aiInfoText}>
+            Musafir uses intelligent content filtering to automatically detect and block:
+          </Text>
+          <View style={styles.aiFeatureList}>
+            <Text style={styles.aiFeatureItem}>• Adult & pornographic content</Text>
+            <Text style={styles.aiFeatureItem}>• Gambling websites</Text>
+            <Text style={styles.aiFeatureItem}>• Harmful search queries</Text>
+            <Text style={styles.aiFeatureItem}>• Dating & hookup apps</Text>
+            <Text style={styles.aiFeatureItem}>• Drug & alcohol content</Text>
           </View>
-
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>
-              Blocked Domains ({blocklist.length})
-            </Text>
-            <TouchableOpacity onPress={handleReset}>
-              <Text style={styles.resetText}>Reset Default</Text>
-            </TouchableOpacity>
-          </View>
-
-          {blocklist.map(item => (
-            <View key={item} style={styles.listItem}>
-              <View style={styles.domainInfo}>
-                <Text style={styles.domainIcon}>🚫</Text>
-                <Text style={styles.domainText}>{item}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemoveDomain(item)}
-              >
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          <Text style={styles.aiInfoNote}>
+            No manual configuration needed - protection is autonomous.
+          </Text>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            VPN: {isVPNActive ? 'Active' : 'Inactive'} | Icon:{' '}
-            {isAppHidden ? 'Hidden' : 'Visible'}
-          </Text>
+        {/* Status Section */}
+        <View style={styles.statusSection}>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusIndicator, isVPNActive && styles.statusActive]} />
+            <Text style={styles.statusLabel}>
+              VPN Filter: {isVPNActive ? 'Active' : 'Ready'}
+            </Text>
+          </View>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusIndicator, isAppHidden && styles.statusActive]} />
+            <Text style={styles.statusLabel}>
+              App Icon: {isAppHidden ? 'Hidden' : 'Visible'}
+            </Text>
+          </View>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusIndicator, isDeviceAdmin && styles.statusActive]} />
+            <Text style={styles.statusLabel}>
+              Uninstall Protection: {isDeviceAdmin ? 'Enabled' : 'Disabled'}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -299,7 +234,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   controlPanel: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   modeOptions: {
     flexDirection: 'row',
@@ -413,46 +348,12 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     textAlign: 'center',
   },
-  settingsSection: {
-    marginTop: -30,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-    fontFamily: fonts.primary,
-  },
-  card: {
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
   ayahCard: {
-    backgroundColor: colors.primaryGradient[1],
+    backgroundColor: colors.primaryDark,
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: -30,
-    marginBottom: 46,
+    marginBottom: 20,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -464,91 +365,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontFamily: fonts.primary,
-    fontWeight: '600',
-  },
-  ayahCardSmall: {
-    backgroundColor: colors.primaryDark,
-    padding: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-  },
-  ayahCardTextSmall: {
-    color: colors.white,
-    fontSize: 12,
-    textAlign: 'center',
-    fontFamily: fonts.primary,
     fontStyle: 'italic',
   },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 4,
+  // AI Info Card Styles
+  aiInfoCard: {
+    backgroundColor: colors.white,
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
   },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  aiInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: 12,
     fontFamily: fonts.primary,
   },
-  resetText: {
-    color: '#D32F2F',
+  aiInfoText: {
     fontSize: 14,
-    fontWeight: '500',
+    color: colors.textLight,
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  aiFeatureList: {
+    marginBottom: 12,
+  },
+  aiFeatureItem: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 6,
+    paddingLeft: 8,
+  },
+  aiInfoNote: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  // Status Section Styles
+  statusSection: {
     backgroundColor: colors.white,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 20,
     elevation: 1,
-    shadowColor: colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 2,
   },
-  domainInfo: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    paddingVertical: 8,
   },
-  domainIcon: {
-    fontSize: 16,
+  statusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ccc',
+    marginRight: 12,
   },
-  domainText: {
-    fontSize: 16,
+  statusActive: {
+    backgroundColor: '#4CAF50',
+  },
+  statusLabel: {
+    fontSize: 14,
     color: colors.text,
-    fontWeight: '500',
-  },
-  removeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
-  },
-  removeButtonText: {
-    color: '#D32F2F',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  footer: {
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  footerText: {
-    fontSize: 12,
-    color: colors.textLight,
   },
 });

@@ -13,6 +13,7 @@ import com.musafir.services.HaramBlockerVPNService
 
 /**
  * Receives BOOT_COMPLETED broadcast to restart services after reboot
+ * Ensures protection continues even after device restart
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -24,71 +25,75 @@ class BootReceiver : BroadcastReceiver() {
             val endTime = prefs.getLong(SharedPrefsModule.KEY_END_TIME, 0)
             
             if (isActive && endTime > System.currentTimeMillis()) {
-                Log.d(TAG, "Timer is active, restarting services")
+                Log.d(TAG, "Timer is active, restarting AI-powered VPN service")
                 
-                // 1. Start VPN Service
+                // 1. Start VPN Service with AI filtering
                 val vpnIntent = Intent(context, HaramBlockerVPNService::class.java)
-                // We need to pass the blocklist, but it's in AsyncStorage (JSON).
-                // For now, we can't easily access it. 
-                // Ideally, we should have saved blocklist to SharedPreferences too.
-                // But if the VPN service loads it from a file or if we just block everything...
-                // Let's assume for now we just start it. The service should handle empty blocklist gracefully 
-                // or we should save blocklist to Prefs too.
-                // TODO: Save blocklist to Prefs.
+                // No blocklist needed - VPN uses AI filter
                 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(vpnIntent)
-                } else {
-                    context.startService(vpnIntent)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(vpnIntent)
+                    } else {
+                        context.startService(vpnIntent)
+                    }
+                    Log.d(TAG, "VPN service started successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to start VPN service", e)
                 }
                 
-                // 2. Reschedule Alarm
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val alarmIntent = Intent(context, TimerExpiryReceiver::class.java)
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    2001, // ALARM_REQUEST_CODE
-                    alarmIntent,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                    else
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                )
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        endTime,
-                        pendingIntent
+                // 2. Reschedule Alarm for timer expiry
+                try {
+                    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                    val alarmIntent = Intent(context, TimerExpiryReceiver::class.java)
+                    val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        ALARM_REQUEST_CODE,
+                        alarmIntent,
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                        else
+                            PendingIntent.FLAG_UPDATE_CURRENT
                     )
-                } else {
-                    alarmManager.setExact(
-                        AlarmManager.RTC_WAKEUP,
-                        endTime,
-                        pendingIntent
-                    )
+                    
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            endTime,
+                            pendingIntent
+                        )
+                    } else {
+                        alarmManager.setExact(
+                            AlarmManager.RTC_WAKEUP,
+                            endTime,
+                            pendingIntent
+                        )
+                    }
+                    Log.d(TAG, "Alarm rescheduled for timer expiry at $endTime")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to reschedule alarm", e)
                 }
                 
-                // 3. Ensure App Icon is hidden (should be already, but just in case)
-                // We can't easily call AppIconManagerModule here as it needs ReactContext.
-                // But we can duplicate the logic or just rely on persistence.
+                // 3. App Icon should remain hidden (persistence handled by PackageManager)
+                Log.d(TAG, "Protection restored after boot")
                 
             } else if (isActive && endTime <= System.currentTimeMillis()) {
-                // Timer expired while off
-                Log.d(TAG, "Timer expired while off, cleaning up")
+                // Timer expired while device was off
+                Log.d(TAG, "Timer expired while device was off, cleaning up")
                 
                 // Clear state
                 prefs.edit().putBoolean(SharedPrefsModule.KEY_IS_ACTIVE, false).apply()
                 
-                // Ensure app is visible
-                // We can use TimerExpiryHandler logic here if we make it public/accessible
-                // It is in com.musafir.services
+                // Ensure app is visible and VPN is stopped
                 com.musafir.services.TimerExpiryHandler.handleExpiry(context)
+            } else {
+                Log.d(TAG, "No active timer found")
             }
         }
     }
 
     companion object {
         private const val TAG = "BootReceiver"
+        private const val ALARM_REQUEST_CODE = 2001
     }
 }

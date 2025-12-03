@@ -1,10 +1,9 @@
 import { NativeModules } from 'react-native';
-import type { VPNConfig } from '../types';
 
 const { VPNModule } = NativeModules;
 
 interface VPN {
-  startVPN: (blocklist: string[]) => Promise<boolean>;
+  startVPN: () => Promise<boolean>;
   stopVPN: () => Promise<void>;
   isVPNActive: () => Promise<boolean>;
   prepareVPN: () => Promise<boolean>;
@@ -24,12 +23,13 @@ export const prepareVPN = (): Promise<boolean> => {
 };
 
 /**
- * Start VPN service with blocklist
- * @param blocklist - Array of domains to block
+ * Start VPN service with AI-powered content filtering
+ * No blocklist needed - filtering is autonomous
  * @returns Promise<boolean> - true if started successfully
  */
-export const startVPN = (blocklist: string[]): Promise<boolean> => {
-  return VPNModule.startVPN(blocklist);
+export const startVPN = (): Promise<boolean> => {
+  // Pass empty array for backwards compatibility, but VPN uses AI filter now
+  return VPNModule.startVPN([]);
 };
 
 /**

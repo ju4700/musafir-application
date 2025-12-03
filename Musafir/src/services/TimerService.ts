@@ -83,9 +83,6 @@ export class TimerService {
 
       const store = useAppStore.getState();
 
-      // Load current blocklist
-      const blocklist = store.blocklist;
-
       // Calculate end time
       const endTime = Date.now() + durationMinutes * 60 * 1000;
 
@@ -93,8 +90,8 @@ export class TimerService {
       await BlocklistService.saveTimerState(endTime, durationMinutes);
       await SharedPrefsModule.saveTimerState(endTime, durationMinutes);
 
-      // Start VPN with blocklist
-      const vpnStarted = await VPNModule.startVPN(blocklist);
+      // Start VPN with AI-powered filtering (no blocklist needed)
+      const vpnStarted = await VPNModule.startVPN();
       if (!vpnStarted) {
         Alert.alert('Error', 'Failed to start VPN service');
         return false;
