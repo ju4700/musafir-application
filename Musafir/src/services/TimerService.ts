@@ -167,13 +167,14 @@ export class TimerService {
         console.error('Alarm scheduling error (non-fatal):', alarmError);
       }
 
+      // TEMPORARILY DISABLED - Background task may be causing crash
       // Start foreground background task (non-critical)
-      try {
-        await TimerService.startBackgroundTask(endTime);
-        console.log('Background task started successfully');
-      } catch (bgError) {
-        console.error('Background task error (non-fatal):', bgError);
-      }
+      // try {
+      //   await TimerService.startBackgroundTask(endTime);
+      //   console.log('Background task started successfully');
+      // } catch (bgError) {
+      //   console.error('Background task error (non-fatal):', bgError);
+      // }
 
       // Show success message - DO NOT hide icon or exit app for now
       // This helps us debug if the VPN and timer are working correctly
