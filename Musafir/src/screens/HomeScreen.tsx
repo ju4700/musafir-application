@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
+  AppState,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { TimerService } from '../services/TimerService';
@@ -25,10 +26,12 @@ export const HomeScreen = () => {
     isAppHidden,
     isDeviceAdmin,
     setDeviceAdmin,
+    setRemainingSeconds,
   } = useAppStore();
 
   const [customDuration, setCustomDuration] = useState('');
   const [isAccessibilityEnabled, setAccessibilityEnabled] = useState(false);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Check for permissions on mount
@@ -37,7 +40,64 @@ export const HomeScreen = () => {
     TimerService.restoreTimerState();
     // Check accessibility status
     checkAccessibility();
+
+    // Cleanup on unmount
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
   }, []);
+
+  // Timer countdown effect - runs every second when timer is active
+  useEffect(() => {
+    if (timer.isActive && timer.endTime) {
+      // Clear any existing interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+
+      // Update immediately
+      const updateRemaining = () => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((timer.endTime! - now) / 1000));
+        setRemainingSeconds(remaining);
+        
+        if (remaining <= 0) {
+          // Timer expired
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+          }
+        }
+      };
+
+      updateRemaining();
+      
+      // Set up interval to update every second
+      timerIntervalRef.current = setInterval(updateRemaining, 1000);
+
+      return () => {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+        }
+      };
+    }
+  }, [timer.isActive, timer.endTime, setRemainingSeconds]);
+
+  // Also update when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && timer.isActive && timer.endTime) {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((timer.endTime - now) / 1000));
+        setRemainingSeconds(remaining);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [timer.isActive, timer.endTime, setRemainingSeconds]);
 
   const checkAccessibility = async () => {
     const enabled = await AccessibilityServiceModule.isAccessibilityEnabled();

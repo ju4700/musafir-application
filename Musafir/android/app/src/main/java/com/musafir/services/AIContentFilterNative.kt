@@ -120,41 +120,73 @@ object AIContentFilterNative {
     )
 
     // ========================================================================
-    // SAFE DOMAINS (Whitelist)
+    // SAFE DOMAINS (Whitelist) - More comprehensive
     // ========================================================================
 
     private val SAFE_DOMAINS = setOf(
-        "google.com", "google.co", "googleapis.com", "gstatic.com",
-        "youtube.com", "youtu.be", "ytimg.com",
-        "facebook.com", "fbcdn.net",
+        // Google
+        "google.com", "google.co", "google.co.uk", "google.ca", "google.com.au",
+        "google.de", "google.fr", "google.es", "google.it", "google.nl",
+        "google.pl", "google.ru", "google.com.br", "google.co.in", "google.co.jp",
+        "googleapis.com", "gstatic.com", "googleusercontent.com", "googlevideo.com",
+        "googleadservices.com", "google-analytics.com", "googletagmanager.com",
+        "googlesyndication.com", "googledomains.com", "goo.gl",
+        // YouTube
+        "youtube.com", "youtu.be", "ytimg.com", "yt.be", "youtube-nocookie.com",
+        // Facebook/Meta
+        "facebook.com", "fbcdn.net", "fb.com", "facebook.net", "fbsbx.com",
         "instagram.com", "cdninstagram.com",
-        "twitter.com", "x.com", "twimg.com",
-        "linkedin.com",
-        "github.com", "githubusercontent.com",
+        // Twitter/X
+        "twitter.com", "x.com", "twimg.com", "t.co",
+        // Microsoft
+        "microsoft.com", "msn.com", "bing.com", "live.com", "outlook.com",
+        "office.com", "office365.com", "azure.com", "windows.com", "windowsupdate.com",
+        "xbox.com", "skype.com", "linkedin.com", "github.com", "githubusercontent.com",
+        // Apple
+        "apple.com", "icloud.com", "apple-dns.net", "mzstatic.com",
+        // Amazon
+        "amazon.com", "amazonaws.com", "amazonws.com", "cloudfront.net",
+        // Other tech
         "stackoverflow.com", "stackexchange.com",
         "wikipedia.org", "wikimedia.org",
-        "amazon.com", "amazonaws.com",
-        "microsoft.com", "msn.com", "bing.com",
-        "apple.com", "icloud.com",
-        "reddit.com", "redd.it", "redditmedia.com",
+        "reddit.com", "redd.it", "redditmedia.com", "redditstatic.com",
         "quora.com",
         "medium.com",
+        // News
         "bbc.com", "bbc.co.uk",
         "cnn.com",
         "nytimes.com",
         "theguardian.com",
         "reuters.com",
+        // Islamic
         "aljazeera.com", "aljazeera.net",
         "islamqa.info",
         "islamweb.net",
         "quran.com",
         "sunnah.com",
-        "cloudflare.com", "cloudflare-dns.com",
-        "akamai.com", "akamaized.net",
-        "fastly.net",
+        // CDNs and infrastructure
+        "cloudflare.com", "cloudflare-dns.com", "cloudflareinsights.com",
+        "akamai.com", "akamaized.net", "akamaitech.net",
+        "fastly.net", "fastlylb.net",
+        "edgecastcdn.net", "edgesuite.net",
+        "llnwd.net",
+        // Messaging
         "whatsapp.com", "whatsapp.net",
-        "telegram.org",
-        "signal.org"
+        "telegram.org", "t.me",
+        "signal.org",
+        // Common utilities
+        "w3.org",
+        "jquery.com",
+        "jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.com", "cdnjs.cloudflare.com",
+        "bootstrapcdn.com",
+        // Android/Mobile
+        "android.com",
+        "play.google.com",
+        "firebase.google.com",
+        "firebaseio.com",
+        "crashlytics.com"
     )
 
     // ========================================================================
@@ -175,8 +207,27 @@ object AIContentFilterNative {
      */
     fun isDomainBlocked(domain: String): Boolean {
         val result = analyzeDomain(domain)
-        Log.d(TAG, "Domain analysis: $domain -> blocked=${result.isBlocked}, category=${result.category}")
+        if (result.isBlocked) {
+            Log.d(TAG, "🚫 BLOCKED: $domain -> category=${result.category}, reason=${result.reason}")
+        } else {
+            Log.d(TAG, "✓ ALLOWED: $domain")
+        }
         return result.isBlocked
+    }
+
+    /**
+     * Check if domain is in whitelist (including subdomains)
+     */
+    private fun isWhitelisted(domain: String): Boolean {
+        val normalizedDomain = domain.lowercase().trim()
+        
+        for (safe in SAFE_DOMAINS) {
+            // Exact match
+            if (normalizedDomain == safe) return true
+            // Subdomain match (e.g., "www.google.com" matches "google.com")
+            if (normalizedDomain.endsWith(".$safe")) return true
+        }
+        return false
     }
 
     /**
@@ -184,21 +235,24 @@ object AIContentFilterNative {
      */
     fun analyzeDomain(domain: String): FilterResult {
         val normalizedDomain = domain.lowercase().trim()
-
-        // Check whitelist first
-        for (safe in SAFE_DOMAINS) {
-            if (normalizedDomain == safe || normalizedDomain.endsWith(".$safe")) {
-                return FilterResult(
-                    isBlocked = false,
-                    category = "safe",
-                    confidence = 1f,
-                    matchedKeywords = emptyList(),
-                    reason = "Whitelisted domain"
-                )
-            }
+        
+        // Skip empty domains
+        if (normalizedDomain.isEmpty()) {
+            return FilterResult(false, "empty", 0f, emptyList(), "Empty domain")
         }
 
-        // Check blocked domain patterns (regex)
+        // Check whitelist first - this is the most important check
+        if (isWhitelisted(normalizedDomain)) {
+            return FilterResult(
+                isBlocked = false,
+                category = "safe",
+                confidence = 1f,
+                matchedKeywords = emptyList(),
+                reason = "Whitelisted domain"
+            )
+        }
+
+        // Check blocked domain patterns (regex) - only explicit bad domains
         for (pattern in BLOCKED_DOMAIN_PATTERNS) {
             if (pattern.containsMatchIn(normalizedDomain)) {
                 val category = categorizePattern(pattern.pattern)
@@ -212,18 +266,30 @@ object AIContentFilterNative {
             }
         }
 
-        // Analyze domain name as text (check keywords)
-        val textResult = analyzeText(normalizedDomain.replace(Regex("[.-]"), " "))
-        if (textResult.isBlocked) {
-            return textResult.copy(reason = "Domain name contains ${textResult.category} keywords")
+        // For unknown domains, ONLY block if domain name itself contains harmful keywords
+        // Be conservative - don't block generic domains
+        val domainParts = normalizedDomain.replace(Regex("[.-]"), " ")
+        
+        // Only check against adult keywords for domain names (most critical)
+        for (keyword in ADULT_KEYWORDS) {
+            if (domainParts.contains(keyword) && keyword.length >= 4) {
+                return FilterResult(
+                    isBlocked = true,
+                    category = "adult",
+                    confidence = 0.8f,
+                    matchedKeywords = listOf(keyword),
+                    reason = "Domain contains adult keyword: $keyword"
+                )
+            }
         }
 
+        // Default: ALLOW unknown domains (be permissive)
         return FilterResult(
             isBlocked = false,
-            category = "safe",
+            category = "unknown",
             confidence = 0.5f,
             matchedKeywords = emptyList(),
-            reason = "No harmful patterns detected"
+            reason = "No harmful patterns detected - allowing"
         )
     }
 
