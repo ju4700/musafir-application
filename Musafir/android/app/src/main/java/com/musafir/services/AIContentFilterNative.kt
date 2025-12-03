@@ -231,7 +231,48 @@ object AIContentFilterNative {
     }
 
     /**
+     * Check if domain is EXPLICITLY harmful (very conservative)
+     * Only returns true for domains that are definitely bad
+     */
+    private fun isExplicitlyBlocked(domain: String): Boolean {
+        val normalizedDomain = domain.lowercase().trim()
+        
+        // Check blocked domain patterns (regex) - only explicit bad domains
+        for (pattern in BLOCKED_DOMAIN_PATTERNS) {
+            if (pattern.containsMatchIn(normalizedDomain)) {
+                return true
+            }
+        }
+        
+        // Check if domain NAME contains adult keywords (not subdomains/TLDs)
+        // Extract the main domain name part
+        val parts = normalizedDomain.split(".")
+        val mainPart = if (parts.size >= 2) {
+            // Get second-to-last part (e.g., "pornhub" from "www.pornhub.com")
+            parts[parts.size - 2]
+        } else {
+            normalizedDomain
+        }
+        
+        // Only check against the most explicit adult keywords
+        val explicitKeywords = setOf(
+            "porn", "xxx", "sex", "nude", "naked", "hentai", "erotic",
+            "xvideos", "xnxx", "pornhub", "redtube", "youporn", "xhamster",
+            "brazzers", "bangbros", "onlyfans", "chaturbate", "stripchat"
+        )
+        
+        for (keyword in explicitKeywords) {
+            if (mainPart.contains(keyword)) {
+                return true
+            }
+        }
+        
+        return false
+    }
+
+    /**
      * Full domain analysis with details
+     * CONSERVATIVE APPROACH: Only block if EXPLICITLY harmful
      */
     fun analyzeDomain(domain: String): FilterResult {
         val normalizedDomain = domain.lowercase().trim()
@@ -241,55 +282,25 @@ object AIContentFilterNative {
             return FilterResult(false, "empty", 0f, emptyList(), "Empty domain")
         }
 
-        // Check whitelist first - this is the most important check
-        if (isWhitelisted(normalizedDomain)) {
+        // Check if EXPLICITLY blocked first
+        if (isExplicitlyBlocked(normalizedDomain)) {
             return FilterResult(
-                isBlocked = false,
-                category = "safe",
-                confidence = 1f,
-                matchedKeywords = emptyList(),
-                reason = "Whitelisted domain"
+                isBlocked = true,
+                category = "adult",
+                confidence = 0.95f,
+                matchedKeywords = listOf(normalizedDomain),
+                reason = "Explicitly blocked domain"
             )
         }
 
-        // Check blocked domain patterns (regex) - only explicit bad domains
-        for (pattern in BLOCKED_DOMAIN_PATTERNS) {
-            if (pattern.containsMatchIn(normalizedDomain)) {
-                val category = categorizePattern(pattern.pattern)
-                return FilterResult(
-                    isBlocked = true,
-                    category = category,
-                    confidence = 0.95f,
-                    matchedKeywords = listOf(pattern.pattern),
-                    reason = "Domain matches $category pattern"
-                )
-            }
-        }
-
-        // For unknown domains, ONLY block if domain name itself contains harmful keywords
-        // Be conservative - don't block generic domains
-        val domainParts = normalizedDomain.replace(Regex("[.-]"), " ")
-        
-        // Only check against adult keywords for domain names (most critical)
-        for (keyword in ADULT_KEYWORDS) {
-            if (domainParts.contains(keyword) && keyword.length >= 4) {
-                return FilterResult(
-                    isBlocked = true,
-                    category = "adult",
-                    confidence = 0.8f,
-                    matchedKeywords = listOf(keyword),
-                    reason = "Domain contains adult keyword: $keyword"
-                )
-            }
-        }
-
-        // Default: ALLOW unknown domains (be permissive)
+        // DEFAULT: ALLOW everything else
+        // This is conservative - we only block what we're sure about
         return FilterResult(
             isBlocked = false,
-            category = "unknown",
-            confidence = 0.5f,
+            category = "allowed",
+            confidence = 1f,
             matchedKeywords = emptyList(),
-            reason = "No harmful patterns detected - allowing"
+            reason = "Not in blocklist - allowing"
         )
     }
 
