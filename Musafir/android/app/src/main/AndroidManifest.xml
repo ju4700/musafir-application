@@ -36,7 +36,7 @@
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
       
-      <!-- Main Activity (no launcher intent - we use alias) -->
+      <!-- Main Activity - Primary launcher (keep enabled for RN CLI) -->
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -44,17 +44,21 @@
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
         android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
       </activity>
 
-      <!-- Launcher Activity Alias (this is what we hide/show) -->
+      <!-- Hidden Launcher Alias (disabled by default, used for icon hiding workaround) -->
       <activity-alias
-        android:name=".MainActivityAlias"
+        android:name=".MainActivityHidden"
         android:targetActivity=".MainActivity"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:exported="true"
-        android:enabled="true">
+        android:enabled="false">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
