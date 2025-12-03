@@ -2,14 +2,18 @@ package com.musafir
 
 import android.app.Activity
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import com.musafir.modules.SharedPrefsModule
 
 /**
  * Activity to handle deep links and notification clicks.
  * This activity remains enabled even when MainActivity is disabled (hidden).
+ * 
+ * IMPORTANT: Only allows access if timer is NOT active or has expired.
  */
 class DeepLinkActivity : Activity() {
 
@@ -18,21 +22,36 @@ class DeepLinkActivity : Activity() {
         
         Log.d(TAG, "DeepLinkActivity started")
         
-        // Check if we need to re-enable MainActivity
-        // For now, we just re-enable it so the user can see the app
-        // In a stricter version, we might check timer state first
+        // Check timer state - only allow access if timer is inactive
+        val prefs = getSharedPreferences(SharedPrefsModule.PREFS_NAME, Context.MODE_PRIVATE)
+        val isActive = prefs.getBoolean(SharedPrefsModule.KEY_IS_ACTIVE, false)
+        val endTime = prefs.getLong(SharedPrefsModule.KEY_END_TIME, 0)
+        val now = System.currentTimeMillis()
+        
+        if (isActive && endTime > now) {
+            // Timer is still active - DO NOT re-enable MainActivity
+            Log.d(TAG, "Timer active, blocking access. Remaining: ${(endTime - now) / 60000} minutes")
+            
+            // Show a toast or notification that access is blocked
+            android.widget.Toast.makeText(
+                this,
+                "مسافر Protection active. Please wait for timer to complete.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            
+            finish()
+            return
+        }
+        
+        // Timer is not active or has expired - allow access
+        Log.d(TAG, "Timer inactive, allowing access")
         
         enableMainActivity()
         
         // Launch MainActivity
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(launchIntent)
-        } else {
-            // Should not happen if we just enabled it, but might take a moment
-            Log.e(TAG, "Could not get launch intent for MainActivity")
-        }
+        val launchIntent = Intent(this, MainActivity::class.java)
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        startActivity(launchIntent)
         
         finish()
     }

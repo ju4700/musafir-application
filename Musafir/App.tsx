@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { TimerService } from './src/services/TimerService';
 import { colors } from './src/theme/colors';
 import { fonts } from './src/theme/fonts';
 
@@ -14,6 +15,11 @@ const Stack = createNativeStackNavigator();
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
+
+  useEffect(() => {
+    // Initialize notification channel on app start
+    TimerService.initializeNotificationChannel();
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.container}>

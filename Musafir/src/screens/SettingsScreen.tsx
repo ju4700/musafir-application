@@ -1,73 +1,54 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   Alert,
   SafeAreaView,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { useAppStore } from '../store/appStore';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { Navbar } from '../components/Navbar';
 import { Header } from '../components/Header';
+import * as DeviceAdminModule from '../native/DeviceAdminModule';
 
 export const SettingsScreen = () => {
-  const { blocklist, addBlockedDomain, removeBlockedDomain, resetBlocklist } =
-    useAppStore();
-  const [newDomain, setNewDomain] = useState('');
+  const { isVPNActive, isAppHidden, isDeviceAdmin, setDeviceAdmin } = useAppStore();
 
-  const handleAddDomain = () => {
-    if (!newDomain.trim()) {
-      Alert.alert('Error', 'Please enter a domain');
-      return;
+  const handleRequestAdmin = async () => {
+    try {
+      const granted = await DeviceAdminModule.requestDeviceAdmin();
+      setDeviceAdmin(granted);
+      if (granted) {
+        Alert.alert('Success', 'Uninstall protection is now enabled.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to request device admin permission.');
     }
-
-    const domainRegex =
-      /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    if (!domainRegex.test(newDomain)) {
-      Alert.alert('Error', 'Please enter a valid domain (e.g., example.com)');
-      return;
-    }
-
-    if (blocklist.includes(newDomain)) {
-      Alert.alert('Error', 'Domain is already in the blocklist');
-      return;
-    }
-
-    addBlockedDomain(newDomain);
-    setNewDomain('');
   };
 
-  const handleRemoveDomain = (domain: string) => {
+  const handleRemoveAdmin = () => {
     Alert.alert(
-      'Remove Domain',
-      `Are you sure you want to remove ${domain} from the blocklist?`,
+      'Remove Protection?',
+      'This will allow the app to be uninstalled normally. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => removeBlockedDomain(domain),
-        },
-      ],
-    );
-  };
-
-  const handleReset = () => {
-    Alert.alert(
-      'Reset Blocklist',
-      'This will restore the default blocklist. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: resetBlocklist,
+          onPress: async () => {
+            try {
+              await DeviceAdminModule.removeDeviceAdmin();
+              setDeviceAdmin(false);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove device admin.');
+            }
+          },
         },
       ],
     );
@@ -78,64 +59,124 @@ export const SettingsScreen = () => {
       <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
       <Header />
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+        {/* AI Protection Info */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Add to Blocklist</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., facebook.com"
-              value={newDomain}
-              onChangeText={setNewDomain}
-              autoCapitalize="none"
-              placeholderTextColor={colors.textLight}
-            />
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddDomain}
-            >
-              <Text style={styles.addButtonText}>Add</Text>
-            </TouchableOpacity>
+          <Text style={styles.cardTitle}>🤖 AI Content Filter</Text>
+          <Text style={styles.cardDescription}>
+            Musafir uses an intelligent AI-powered system to automatically detect and block harmful content. The filter analyzes:
+          </Text>
+          <View style={styles.featureList}>
+            <Text style={styles.featureItem}>• Domain names and URLs</Text>
+            <Text style={styles.featureItem}>• Search queries and keywords</Text>
+            <Text style={styles.featureItem}>• Content patterns and categories</Text>
+          </View>
+          <View style={styles.statusBadge}>
+            <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+            <Text style={styles.statusBadgeText}>Always Active When Timer Running</Text>
           </View>
         </View>
 
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>
-            Blocked Domains ({blocklist.length})
+        {/* Blocked Categories */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🚫 Blocked Categories</Text>
+          <View style={styles.categoryGrid}>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>🔞</Text>
+              <Text style={styles.categoryText}>Adult Content</Text>
+            </View>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>🎰</Text>
+              <Text style={styles.categoryText}>Gambling</Text>
+            </View>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>🍺</Text>
+              <Text style={styles.categoryText}>Alcohol</Text>
+            </View>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>💊</Text>
+              <Text style={styles.categoryText}>Drugs</Text>
+            </View>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>💔</Text>
+              <Text style={styles.categoryText}>Dating Apps</Text>
+            </View>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryEmoji}>⚠️</Text>
+              <Text style={styles.categoryText}>Violence</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Uninstall Protection */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🛡️ Uninstall Protection</Text>
+          <Text style={styles.cardDescription}>
+            {isDeviceAdmin 
+              ? 'Device admin is enabled. The app cannot be easily uninstalled while the timer is active.'
+              : 'Enable device admin to prevent the app from being uninstalled during active protection.'}
           </Text>
-          <TouchableOpacity onPress={handleReset}>
-            <Text style={styles.resetText}>Reset Default</Text>
+          <TouchableOpacity
+            style={[
+              styles.adminButton,
+              isDeviceAdmin ? styles.adminButtonRemove : styles.adminButtonEnable,
+            ]}
+            onPress={isDeviceAdmin ? handleRemoveAdmin : handleRequestAdmin}
+          >
+            <Text style={[
+              styles.adminButtonText,
+              isDeviceAdmin ? styles.adminButtonTextRemove : styles.adminButtonTextEnable,
+            ]}>
+              {isDeviceAdmin ? 'Remove Protection' : 'Enable Protection'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          data={blocklist}
-          keyExtractor={item => item}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.listItem}>
-              <View style={styles.domainInfo}>
-                <Text style={styles.domainIcon}>🚫</Text>
-                <Text style={styles.domainText}>{item}</Text>
+        {/* Current Status */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📊 Current Status</Text>
+          <View style={styles.statusList}>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>VPN Filter</Text>
+              <View style={[styles.statusPill, isVPNActive && styles.statusPillActive]}>
+                <Text style={[styles.statusPillText, isVPNActive && styles.statusPillTextActive]}>
+                  {isVPNActive ? 'Active' : 'Inactive'}
+                </Text>
               </View>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemoveDomain(item)}
-              >
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </TouchableOpacity>
             </View>
-          )}
-        />
-      </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>App Icon</Text>
+              <View style={[styles.statusPill, isAppHidden && styles.statusPillActive]}>
+                <Text style={[styles.statusPillText, isAppHidden && styles.statusPillTextActive]}>
+                  {isAppHidden ? 'Hidden' : 'Visible'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Uninstall Lock</Text>
+              <View style={[styles.statusPill, isDeviceAdmin && styles.statusPillActive]}>
+                <Text style={[styles.statusPillText, isDeviceAdmin && styles.statusPillTextActive]}>
+                  {isDeviceAdmin ? 'Enabled' : 'Disabled'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          VPN: {useAppStore.getState().isVPNActive ? 'Active' : 'Inactive'} |
-          Icon: {useAppStore.getState().isAppHidden ? 'Hidden' : 'Visible'}
-        </Text>
-      </View>
+        {/* About */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>ℹ️ About Musafir</Text>
+          <Text style={styles.cardDescription}>
+            Musafir (مسافر) means "traveler" in Arabic. This app is designed to help Muslims on their spiritual journey by protecting them from harmful digital content.
+          </Text>
+          <Text style={styles.ayahText}>
+            "Indeed, Allah is ever, over you, an Observer." (4:1)
+          </Text>
+        </View>
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+
       <Navbar />
     </SafeAreaView>
   );
@@ -148,13 +189,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 120,
   },
   card: {
     backgroundColor: colors.white,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 16,
     elevation: 2,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -165,102 +209,129 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-    fontFamily: fonts.primary,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    fontFamily: fonts.primary,
-  },
-  resetText: {
-    color: '#D32F2F',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    padding: 16,
-    borderRadius: 12,
     marginBottom: 12,
-    elevation: 1,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    fontFamily: fonts.primary,
   },
-  domainInfo: {
+  cardDescription: {
+    fontSize: 14,
+    color: colors.textLight,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  featureList: {
+    marginBottom: 16,
+  },
+  featureItem: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 6,
+    paddingLeft: 4,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 10,
+  },
+  categoryItem: {
+    width: '30%',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  categoryEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  categoryText: {
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  adminButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  adminButtonEnable: {
+    backgroundColor: colors.primary,
+  },
+  adminButtonRemove: {
+    backgroundColor: '#FFEBEE',
+  },
+  adminButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  adminButtonTextEnable: {
+    color: colors.white,
+  },
+  adminButtonTextRemove: {
+    color: '#D32F2F',
+  },
+  statusList: {
     gap: 12,
   },
-  domainIcon: {
-    fontSize: 16,
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  domainText: {
-    fontSize: 16,
+  statusLabel: {
+    fontSize: 14,
     color: colors.text,
     fontWeight: '500',
   },
-  removeButton: {
-    paddingVertical: 6,
+  statusPill: {
     paddingHorizontal: 12,
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
   },
-  removeButtonText: {
-    color: '#D32F2F',
+  statusPillActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  statusPillText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  footer: {
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 90, // Space for Navbar
-  },
-  footerText: {
-    fontSize: 12,
     color: colors.textLight,
+  },
+  statusPillTextActive: {
+    color: '#2E7D32',
+  },
+  ayahText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: colors.primary,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  bottomPadding: {
+    height: 20,
   },
 });

@@ -188,9 +188,9 @@ export class TimerService {
     };
 
     const options = {
-      taskName: 'HaramBlocker Timer',
-      taskTitle: 'Timer Active',
-      taskDesc: 'HaramBlocker is running',
+      taskName: 'Musafir Timer',
+      taskTitle: 'مسافر Protection Active',
+      taskDesc: 'AI content filtering is running',
       taskIcon: {
         name: 'ic_launcher',
         type: 'mipmap',
@@ -223,7 +223,7 @@ export class TimerService {
 
     await notifee.displayNotification({
       id: TIMER_NOTIFICATION_ID.toString(),
-      title: 'HaramBlocker Active',
+      title: 'مسافر Protection Active',
       body: `Time remaining: ${timeString}`,
       android: {
         channelId: NOTIFICATION_CHANNEL_ID,
@@ -260,8 +260,8 @@ export class TimerService {
 
     // Show expiry notification
     await notifee.displayNotification({
-      title: 'Timer Expired',
-      body: 'HaramBlocker timer has ended. The app is now visible.',
+      title: 'Protection Complete',
+      body: 'Musafir timer has ended. The app is now visible.',
       android: {
         channelId: NOTIFICATION_CHANNEL_ID,
         importance: AndroidImportance.HIGH,
